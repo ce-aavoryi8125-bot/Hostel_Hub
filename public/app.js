@@ -81,7 +81,7 @@ function HostelCard({ hostel, onClick }) {
           <div className="hostel-price">
             <div className="hostel-price-label">Starting from</div>
             <div className="hostel-price-value">
-              {formatCurrency(hostel.pricePerMonth)} <span className="per">/mo</span>
+              {formatCurrency(hostel.pricePerYear || hostel.pricePerMonth)} <span className="per">/year</span>
             </div>
           </div>
           <div className="hostel-card-rooms">
@@ -170,7 +170,7 @@ function HostelDetailModal({ hostel, user, onClose, onRent, onRequireAuth }) {
             <div className="modal-price-box">
               <div className="modal-price-from">From</div>
               <div className="modal-price-big">
-                {formatCurrency(hostel.pricePerMonth)}<span className="per">/mo</span>
+                {formatCurrency(hostel.pricePerYear || hostel.pricePerMonth)}<span className="per">/year</span>
               </div>
               <a href={hostel.mapsUrl || '#'} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ marginTop: '10px' }}>
                 🗺️ Map
@@ -210,7 +210,7 @@ function HostelDetailModal({ hostel, user, onClose, onRent, onRequireAuth }) {
                 <div className="room-gallery-header">
                   <h4>Photos — {activeRoom}</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span className="room-gallery-price">{formatCurrency(activeRoomData.price)}/mo</span>
+                    <span className="room-gallery-price">{formatCurrency(activeRoomData.price)}/year</span>
                     <button
                       className="btn btn-amber btn-sm"
                       onClick={() => onRent(activeRoom, activeRoomData.price)}
@@ -609,13 +609,13 @@ function ManagerPortal({ token, user }) {
   const [bankForm, setBankForm] = useState({ bankName: '', accountName: '', accountNumber: '' });
   const [expenseForm, setExpenseForm] = useState({ hostelId: '', amount: '', category: 'Maintenance', description: '' });
   const [hostelForm, setHostelForm] = useState({
-    name: '', location: 'Tarkwa', address: '', pricePerMonth: 400, rating: 4.8,
+    name: '', location: 'Agric Hill', address: '', pricePerYear: 5000, rating: 4.8,
     mapsUrl: '', facilities: 'Wi-Fi,Water,Security,Electricity Backup',
     agentName: '', agentPhone: '', agentEmail: '', description: '',
-    room1Active: true, room1Price: 450,
-    room2Active: true, room2Price: 400,
-    room3Active: false, room3Price: 350,
-    room4Active: false, room4Price: 300,
+    room1Active: true, room1Price: 9000,
+    room2Active: true, room2Price: 7000,
+    room3Active: false, room3Price: 5500,
+    room4Active: false, room4Price: 4500,
     kitchenPhotos: 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80',
   });
   const [photos, setPhotos] = useState([]);
@@ -746,8 +746,8 @@ function ManagerPortal({ token, user }) {
             </div>
             <div className="form-grid-2">
               <div className="form-field">
-                <label className="form-label">Base Price / Month (GHS)</label>
-                <input className="form-input" type="number" value={hostelForm.pricePerMonth} onChange={(e) => hf('pricePerMonth', Number(e.target.value))} required />
+                <label className="form-label">Base Price / Year (GHS)</label>
+                <input className="form-input" type="number" value={hostelForm.pricePerYear} onChange={(e) => hf('pricePerYear', Number(e.target.value))} required />
               </div>
               <div className="form-field">
                 <label className="form-label">Facilities (comma-separated)</label>
@@ -903,7 +903,8 @@ function StudentApp() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roomType, setRoomType] = useState('');
-  const [maxPrice, setMaxPrice] = useState(800);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [maxPrice, setMaxPrice] = useState(12000);
 
   const [selectedHostel, setSelectedHostel] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -918,7 +919,7 @@ function StudentApp() {
   const loadHostels = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ search, roomType, maxPrice });
+      const params = new URLSearchParams({ search, roomType, maxPrice, location: locationFilter });
       const res = await fetch(`${API}/api/hostels?${params}`);
       const data = await res.json();
       setHostels(data.hostels || []);
@@ -926,7 +927,7 @@ function StudentApp() {
     setLoading(false);
   };
 
-  useEffect(() => { loadHostels(); }, [search, roomType, maxPrice]);
+  useEffect(() => { loadHostels(); }, [search, roomType, maxPrice, locationFilter]);
 
   useEffect(() => {
     if (!token) { setUser(null); return; }
@@ -1080,16 +1081,25 @@ function StudentApp() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
+              <select className="filter-select" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)}>
+                <option value="">All Areas</option>
+                <option value="Agric Hill">Agric Hill</option>
+                <option value="Akyempim">Akyempim</option>
+                <option value="Akoon">Akoon</option>
+                <option value="Brahabebome">Brahabebome</option>
+                <option value="Tamso">Tamso</option>
+                <option value="New Canaan">New Canaan</option>
+              </select>
               <select className="filter-select" value={roomType} onChange={(e) => setRoomType(e.target.value)}>
-                <option value="">All Room Types</option>
+                <option value="">All Occupancies</option>
                 <option value="1-in-a-room">1-in-a-room</option>
                 <option value="2-in-a-room">2-in-a-room</option>
                 <option value="3-in-a-room">3-in-a-room</option>
                 <option value="4-in-a-room">4-in-a-room</option>
               </select>
               <label className="filter-price-label">
-                Budget: <strong>{formatCurrency(maxPrice)}/mo</strong>
-                <input type="range" min="200" max="1000" step="25" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} />
+                Max Price: <strong>{formatCurrency(maxPrice)}/year</strong>
+                <input type="range" min="3000" max="12000" step="250" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} />
               </label>
               <span className="filter-count">{loading ? 'Loading...' : `${hostels.length} hostel${hostels.length !== 1 ? 's' : ''} found`}</span>
             </div>
@@ -1154,28 +1164,36 @@ function StudentApp() {
             </div>
           </div>
           <div className="pricing-section">
-            <h2>Listing Packages</h2>
-            <p>Straightforward pricing to keep our verification team on the road.</p>
+            <h2>Our Win-Win Partnership Model</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              We don't charge expensive monthly subscriptions. We make money only when you make money, with a small one-time listing fee to cover photography costs.
+            </p>
             <div className="pricing-grid">
               <div className="pricing-card">
-                <h3>Standard Plan</h3>
-                <div className="pricing-price">GHS 150 <span className="note">one-time</span></div>
+                <h3>1. One-Time Listing & Verification</h3>
+                <div className="pricing-price">GHS 200 <span className="note">once-off setup</span></div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: '1.5' }}>
+                  Covers the physical visit by our photography team to verify safety, check kitchen/water amenities, and capture high-quality photos of all room occupancies (1-in to 4-in-a-room).
+                </p>
                 <ul className="pricing-features">
-                  <li>Physical hostel verification visit</li>
-                  <li>Professional room photography (all types)</li>
-                  <li>Manager profile & Google Maps routing</li>
-                  <li>WhatsApp scheduling widget</li>
+                  <li>Physical verification stamp & badge</li>
+                  <li>Professional photoshoot & kitchen verification</li>
+                  <li>Interactive listing on the student portal</li>
+                  <li>Local agent assigned for campus tours</li>
                 </ul>
               </div>
               <div className="pricing-card featured">
-                <div className="pricing-badge">✨ RECOMMENDED</div>
-                <h3>Premium Analytics Plan</h3>
-                <div className="pricing-price">GHS 250 <span className="note">one-time</span></div>
+                <div className="pricing-badge">🔥 PERFORMANCE PRICING</div>
+                <h3>2. Success Booking Commission</h3>
+                <div className="pricing-price">3% <span className="note">per student booking</span></div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: '1.5' }}>
+                  You only pay commission when we deliver results. When a student chooses a room style, pays directly into your bank, we log it and keep a tiny service commission.
+                </p>
                 <ul className="pricing-features">
-                  <li>Everything in Standard</li>
-                  <li>Top of student search results</li>
-                  <li>Full income & expense ledger</li>
-                  <li>Bank account link for direct payments</li>
+                  <li>No booking, no commission fee</li>
+                  <li>Direct bank payouts into your ledger</li>
+                  <li>Access to financial bookkeeping ledger</li>
+                  <li>Student visitor analytics and click counts</li>
                 </ul>
               </div>
             </div>
@@ -1267,14 +1285,14 @@ function AdminApp() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [form, setForm] = useState({
-    name: '', location: 'Tarkwa', address: '', pricePerMonth: 400, rating: 4.8,
+    name: '', location: 'Agric Hill', address: '', pricePerYear: 5000, rating: 4.8,
     mapsUrl: '', facilities: 'Wi-Fi,Water,Security,Power Backup',
     agentName: 'Ama Mensah', agentPhone: '+233 20 123 4567', agentEmail: 'ama@hostelhub.dev',
     description: '',
-    room1Active: true, room1Price: 450,
-    room2Active: true, room2Price: 400,
-    room3Active: false, room3Price: 350,
-    room4Active: false, room4Price: 300,
+    room1Active: true, room1Price: 9000,
+    room2Active: true, room2Price: 7000,
+    room3Active: false, room3Price: 5500,
+    room4Active: false, room4Price: 4500,
     kitchenPhotos: 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80',
   });
   const [photos, setPhotos] = useState([]);
@@ -1396,7 +1414,7 @@ function AdminApp() {
               <div className="form-field"><label className="form-label">Google Maps URL</label><input className="form-input" value={form.mapsUrl} onChange={(e) => sf('mapsUrl', e.target.value)} placeholder="https://maps.google.com/?q=..." required /></div>
             </div>
             <div className="form-grid-2">
-              <div className="form-field"><label className="form-label">Base Price/Month (GHS)</label><input className="form-input" type="number" value={form.pricePerMonth} onChange={(e) => sf('pricePerMonth', Number(e.target.value))} required /></div>
+              <div className="form-field"><label className="form-label">Base Price/Year (GHS)</label><input className="form-input" type="number" value={form.pricePerYear} onChange={(e) => sf('pricePerYear', Number(e.target.value))} required /></div>
               <div className="form-field"><label className="form-label">Rating</label><input className="form-input" type="number" step="0.1" value={form.rating} onChange={(e) => sf('rating', Number(e.target.value))} required /></div>
             </div>
             <div style={{ background: 'var(--bg-subtle)', padding: '14px', borderRadius: 'var(--radius-md)' }}>
@@ -1452,7 +1470,7 @@ function AdminApp() {
                 <div key={h.id} style={{ padding: '12px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <strong style={{ fontSize: '14px' }}>{h.name}</strong>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{h.location} · {formatCurrency(h.pricePerMonth)}/mo</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{h.location} · {formatCurrency(h.pricePerYear || h.pricePerMonth)}/year</div>
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--navy-600)' }}>{h.visits || 0} clicks</span>
                 </div>

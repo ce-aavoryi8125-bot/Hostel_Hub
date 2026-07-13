@@ -1,24 +1,14 @@
 {
   "students": [
     {
-      "id": "student-1783959458343",
+      "id": "student-1783968064430",
       "name": "Test Student",
-      "email": "stu-1783959458217@umat.edu.gh",
+      "email": "stu-1783968064172@umat.edu.gh",
       "phone": "0240000001",
       "studentId": "UM-12345",
-      "password": "$2a$10$e6Yd1Nl5/aRDdjbGxYNzkeU5c18YDCx1JdaxsyooJPkFVfCDtdNkq",
+      "password": "$2a$10$///BuIGYcBw5ydGIJnm52O1chpM6WBfz77LBKh2p9Up4Dd8tLWW.K",
       "role": "student",
-      "createdAt": "2026-07-13T16:17:38.343Z"
-    },
-    {
-      "id": "student-1783960230710",
-      "name": "Test Student",
-      "email": "stu-1783960230607@umat.edu.gh",
-      "phone": "0240000001",
-      "studentId": "UM-12345",
-      "password": "$2a$10$rrxwM4aPtpaQBI/kybVFXuX5KRPFA5OaWGu67sGAS0TCecM2mrQre",
-      "role": "student",
-      "createdAt": "2026-07-13T16:30:30.710Z"
+      "createdAt": "2026-07-13T18:41:04.430Z"
     }
   ],
   "managers": [
@@ -26,7 +16,7 @@
       "id": "manager-1",
       "name": "John Owusu",
       "email": "manager@hostelhub.dev",
-      "password": "$2a$10$es9FUHxxFBUbYV2qGN7pW.2kY.V8g0QGuI7irPePO8In/1rgMw.PG",
+      "password": "$2a$10$hnJXxpCwnZ4M3itKZ7oLH.aKVoXKazO.D9EtOnv2Lx0/sakHDWnN2",
       "phone": "+233 24 111 2222",
       "role": "manager",
       "bankDetails": {
@@ -34,35 +24,21 @@
         "accountName": "John Owusu Hostel Ventures",
         "accountNumber": "1029384756"
       },
-      "createdAt": "2026-07-13T16:16:52.699Z"
+      "createdAt": "2026-07-13T18:40:17.673Z"
     },
     {
-      "id": "manager-1783959458456",
+      "id": "manager-1783968064683",
       "name": "Test Manager",
-      "email": "mgr-1783959458360@hostels.com",
+      "email": "mgr-1783968064460@hostels.com",
       "phone": "0240000002",
-      "password": "$2a$10$4AXbtnAfZP6UujbJk5VWJe/I8R/2HdTzlGOCNMv3DcH0abULFwLpi",
+      "password": "$2a$10$8u9dw416hI5WhnDiL9hUpulScQIXsXyuEPiMHsgancg9yB55oUpO2",
       "role": "manager",
       "bankDetails": {
         "bankName": "Fidelity Bank",
         "accountName": "Test Manager Ventures",
         "accountNumber": "1902837465"
       },
-      "createdAt": "2026-07-13T16:17:38.456Z"
-    },
-    {
-      "id": "manager-1783960230815",
-      "name": "Test Manager",
-      "email": "mgr-1783960230721@hostels.com",
-      "phone": "0240000002",
-      "password": "$2a$10$E0c0wzues/LUFY6EtSPYe.TcBXrztySwZLVvb7DJIVrpi.6I3q2Cy",
-      "role": "manager",
-      "bankDetails": {
-        "bankName": "Fidelity Bank",
-        "accountName": "Test Manager Ventures",
-        "accountNumber": "1902837465"
-      },
-      "createdAt": "2026-07-13T16:30:30.815Z"
+      "createdAt": "2026-07-13T18:41:04.683Z"
     }
   ],
   "admins": [
@@ -70,7 +46,7 @@
       "id": "admin-1",
       "name": "Hostel Hub Admin",
       "email": "admin@hostelhub.dev",
-      "password": "$2a$10$G5vKEnI5.wP.b68jDCI0Q.4mrbgKb4CDspbnYHwDQ9DBne./nuDKu",
+      "password": "$2a$10$8DxRo9Pnt4LpzfXbnm4B2.IhSLTVqiTZOe9hatl7DITqSE0z8LMFy",
       "role": "admin"
     }
   ],
@@ -78,9 +54,9 @@
     {
       "id": "hostel-1",
       "name": "Tarkwa Hostel Haven",
-      "location": "Tarkwa",
+      "location": "Agric Hill",
       "address": "Near UMaT Gate",
-      "pricePerMonth": 420,
+      "pricePerYear": 4500,
       "rating": 4.8,
       "mapsUrl": "https://maps.google.com/?q=Tarkwa+UMaT+Hostel",
       "facilities": [
@@ -92,6 +68,10 @@
       "agentName": "Ama Mensah",
       "agentPhone": "+233 20 123 4567",
       "agentEmail": "ama@hostelhub.dev",
+      "managerId": "manager-1",
+      "managerName": "John Owusu",
+      "managerPhone": "+233 24 111 2222",
+      "managerEmail": "manager@hostelhub.dev",
       "description": "Popular hostel near the university for students who want safe, clean accommodation with agent support.",
       "photos": [
         "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80",
@@ -99,21 +79,27 @@
       ],
       "roomTypes": {
         "1-in-a-room": {
-          "price": 450,
+          "price": 9000,
           "gallery": [
             "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80"
           ]
         },
         "2-in-a-room": {
-          "price": 420,
+          "price": 7000,
           "gallery": [
             "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80"
           ]
         },
         "3-in-a-room": {
-          "price": 380,
+          "price": 5500,
           "gallery": [
             "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80"
+          ]
+        },
+        "4-in-a-room": {
+          "price": 4500,
+          "gallery": [
+            "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=80"
           ]
         }
       },
@@ -125,9 +111,9 @@
     {
       "id": "hostel-2",
       "name": "University Vista Lodge",
-      "location": "Tarkwa",
+      "location": "Akyempim",
       "address": "Opposite UMaT East Gate",
-      "pricePerMonth": 360,
+      "pricePerYear": 5000,
       "rating": 4.6,
       "mapsUrl": "https://maps.google.com/?q=University+Vista+Lodge+Tarkwa",
       "facilities": [
@@ -139,6 +125,10 @@
       "agentName": "Kwame Boateng",
       "agentPhone": "+233 24 987 6543",
       "agentEmail": "kwame@hostelhub.dev",
+      "managerId": "manager-1",
+      "managerName": "John Owusu",
+      "managerPhone": "+233 24 111 2222",
+      "managerEmail": "manager@hostelhub.dev",
       "description": "A student-friendly lodge with roomy shared spaces and easy access to campus transport.",
       "photos": [
         "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80",
@@ -146,13 +136,13 @@
       ],
       "roomTypes": {
         "2-in-a-room": {
-          "price": 360,
+          "price": 8000,
           "gallery": [
             "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80"
           ]
         },
         "4-in-a-room": {
-          "price": 320,
+          "price": 5000,
           "gallery": [
             "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=80"
           ]
@@ -167,100 +157,16 @@
   "tourRequests": [],
   "visits": [
     {
-      "id": "visit-1783959458655",
+      "id": "visit-seed-1",
+      "page": "student",
+      "user": "Anonymous Student",
+      "timestamp": "2026-07-13T17:40:17.854Z"
+    },
+    {
+      "id": "visit-1783968065114",
       "page": "student-browse",
       "user": "Test Student",
-      "timestamp": "2026-07-13T16:17:38.655Z"
-    },
-    {
-      "id": "visit-1783960106604",
-      "page": "student-browse",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T16:28:26.604Z"
-    },
-    {
-      "id": "visit-1783960132066",
-      "page": "pitch",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T16:28:52.066Z"
-    },
-    {
-      "id": "visit-1783960133909",
-      "page": "roadmap",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T16:28:53.909Z"
-    },
-    {
-      "id": "visit-1783960138721",
-      "page": "student-browse",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T16:28:58.721Z"
-    },
-    {
-      "id": "visit-1783960231008",
-      "page": "student-browse",
-      "user": "Test Student",
-      "timestamp": "2026-07-13T16:30:31.008Z"
-    },
-    {
-      "id": "visit-1783960259243",
-      "page": "student-browse",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T16:30:59.243Z"
-    },
-    {
-      "id": "visit-1783960283613",
-      "page": "student-browse",
-      "user": "Hostel Hub Admin (admin)",
-      "timestamp": "2026-07-13T16:31:23.613Z"
-    },
-    {
-      "id": "visit-1783960313021",
-      "page": "pitch",
-      "user": "Hostel Hub Admin (admin)",
-      "timestamp": "2026-07-13T16:31:53.021Z"
-    },
-    {
-      "id": "visit-1783960489332",
-      "page": "student-browse",
-      "user": "Hostel Hub Admin (admin)",
-      "timestamp": "2026-07-13T16:34:49.332Z"
-    },
-    {
-      "id": "visit-1783960515176",
-      "page": "student-browse",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T16:35:15.176Z"
-    },
-    {
-      "id": "visit-1783960528252",
-      "page": "manager-finances-portal",
-      "user": "John Owusu (manager)",
-      "timestamp": "2026-07-13T16:35:28.252Z"
-    },
-    {
-      "id": "visit-1783962471457",
-      "page": "student-browse",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T17:07:51.458Z"
-    },
-    {
-      "id": "visit-1783964311215",
-      "page": "student-browse",
-      "user": "Anonymous Student",
-      "timestamp": "2026-07-13T17:38:31.215Z"
-    },
-    {
-      "id": "visit-1783964328808",
-      "page": "student-browse",
-      "user": "Hostel Hub Admin (admin)",
-      "timestamp": "2026-07-13T17:38:48.808Z"
-    },
-    {
-      "id": "visit-1783964345794",
-      "page": "roadmap",
-      "user": "Hostel Hub Admin (admin)",
-      "timestamp": "2026-07-13T17:39:05.794Z"
+      "timestamp": "2026-07-13T18:41:05.114Z"
     }
   ],
   "transactions": [
@@ -275,7 +181,7 @@
       "description": "1-in-a-room rent paid by Albert Appiah",
       "studentName": "Albert Appiah",
       "studentEmail": "albert@umat.edu.gh",
-      "createdAt": "2026-07-12T16:16:52.817Z"
+      "createdAt": "2026-07-12T18:40:17.854Z"
     },
     {
       "id": "tx-seed-2",
@@ -286,7 +192,7 @@
       "amount": 120,
       "category": "Electricity",
       "description": "ECG prepaid credit purchase",
-      "createdAt": "2026-07-13T04:16:52.817Z"
+      "createdAt": "2026-07-13T06:40:17.854Z"
     },
     {
       "id": "tx-seed-3",
@@ -297,10 +203,10 @@
       "amount": 80,
       "category": "Maintenance",
       "description": "Plumber fee to fix kitchen sink",
-      "createdAt": "2026-07-13T10:43:32.817Z"
+      "createdAt": "2026-07-13T13:06:57.854Z"
     },
     {
-      "id": "tx-1783959458662",
+      "id": "tx-1783968065124",
       "managerId": "manager-1",
       "hostelId": "hostel-1",
       "hostelName": "Tarkwa Hostel Haven",
@@ -309,43 +215,19 @@
       "category": "Rent Payment",
       "description": "2-in-a-room rent paid via Hostel Hub",
       "studentName": "Test Student",
-      "studentEmail": "student-1783959458343",
-      "createdAt": "2026-07-13T16:17:38.662Z"
+      "studentEmail": "student-1783968064430",
+      "createdAt": "2026-07-13T18:41:05.124Z"
     },
     {
-      "id": "tx-1783959458675",
-      "managerId": "manager-1783959458456",
+      "id": "tx-1783968065144",
+      "managerId": "manager-1783968064683",
       "hostelId": null,
       "hostelName": "General Operation",
       "type": "expense",
       "amount": 150,
       "category": "Maintenance",
       "description": "Wifi router replacement",
-      "createdAt": "2026-07-13T16:17:38.675Z"
-    },
-    {
-      "id": "tx-1783960231013",
-      "managerId": "manager-1",
-      "hostelId": "hostel-1",
-      "hostelName": "Tarkwa Hostel Haven",
-      "type": "income",
-      "amount": 400,
-      "category": "Rent Payment",
-      "description": "2-in-a-room rent paid via Hostel Hub",
-      "studentName": "Test Student",
-      "studentEmail": "student-1783960230710",
-      "createdAt": "2026-07-13T16:30:31.014Z"
-    },
-    {
-      "id": "tx-1783960231025",
-      "managerId": "manager-1783960230815",
-      "hostelId": null,
-      "hostelName": "General Operation",
-      "type": "expense",
-      "amount": 150,
-      "category": "Maintenance",
-      "description": "Wifi router replacement",
-      "createdAt": "2026-07-13T16:30:31.025Z"
+      "createdAt": "2026-07-13T18:41:05.144Z"
     }
   ]
 }

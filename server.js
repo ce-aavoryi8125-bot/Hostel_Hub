@@ -42,7 +42,7 @@ const DEFAULT_SEED = {
     {
       id: 'hostel-1',
       name: 'Tarkwa Hostel Haven',
-      location: 'Tarkwa',
+      location: 'Agric Hill',
       address: 'Near UMaT Gate',
       pricePerYear: 4500,
       rating: 4.8,
@@ -72,7 +72,7 @@ const DEFAULT_SEED = {
     {
       id: 'hostel-2',
       name: 'University Vista Lodge',
-      location: 'Tarkwa',
+      location: 'Akyempim',
       address: 'Opposite UMaT East Gate',
       pricePerYear: 5000,
       rating: 4.6,
@@ -389,13 +389,15 @@ app.get('/api/hostels', (req, res) => {
   const db = readDb();
   const searchTerm = String(req.query.search || '').trim().toLowerCase();
   const roomType = String(req.query.roomType || '').trim();
-  const maxPrice = Number(req.query.maxPrice || 9999);
+  const locationFilter = String(req.query.location || '').trim().toLowerCase();
+  const maxPrice = Number(req.query.maxPrice || 15000);
 
   let hostels = db.hostels.filter((hostel) => {
     const matchesSearch = !searchTerm || [hostel.name, hostel.location, hostel.address, hostel.description].join(' ').toLowerCase().includes(searchTerm);
     const matchesRoomType = !roomType || Object.keys(hostel.roomTypes || {}).includes(roomType);
-    const matchesPrice = Number(hostel.pricePerMonth) <= maxPrice;
-    return matchesSearch && matchesRoomType && matchesPrice;
+    const matchesPrice = Number(hostel.pricePerYear || hostel.pricePerMonth) <= maxPrice;
+    const matchesLocation = !locationFilter || String(hostel.location || '').toLowerCase() === locationFilter;
+    return matchesSearch && matchesRoomType && matchesPrice && matchesLocation;
   });
 
   return res.json({ hostels });
@@ -612,7 +614,7 @@ app.get('/api/admin/stats', authenticateToken, requireAdmin, (req, res) => {
     totalManagers: db.managers ? db.managers.length : 0,
     totalTourRequests: db.tourRequests.length,
     totalVisits: db.visits.length,
-    averagePrice: db.hostels.length ? (db.hostels.reduce((sum, hostel) => sum + Number(hostel.pricePerMonth || 0), 0) / db.hostels.length).toFixed(2) : 0
+    averagePrice: db.hostels.length ? (db.hostels.reduce((sum, hostel) => sum + Number(hostel.pricePerYear || hostel.pricePerMonth || 0), 0) / db.hostels.length).toFixed(2) : 0
   };
 
   return res.json({ stats });
@@ -657,7 +659,7 @@ app.post('/api/admin/hostels', authenticateToken, requireManagerOrAdmin, upload.
     name: String(req.body.name || '').trim(),
     location: String(req.body.location || '').trim(),
     address: String(req.body.address || '').trim(),
-    pricePerMonth: Number(req.body.pricePerMonth || 0),
+    pricePerYear: Number(req.body.pricePerYear || req.body.pricePerMonth || 0),
     rating: Number(req.body.rating || 4.5),
     mapsUrl: String(req.body.mapsUrl || '').trim(),
     facilities: String(req.body.facilities || '').split(',').map((item) => item.trim()).filter(Boolean),
