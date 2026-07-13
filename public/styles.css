@@ -1,0 +1,295 @@
+:root {
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --line: #d9e1f1;
+  --brand: #0f7b6b;
+  --brand-dark: #0b5b50;
+  --text: #16324f;
+  --muted: #56687d;
+  --danger: #b23a48;
+  --success: #147d3b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #eff5ff, #f9fbff);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.app-shell {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.topbar h1,
+.panel h2,
+.panel h3 {
+  margin: 0;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--brand);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(21, 48, 77, 0.08);
+}
+
+.hero-card {
+  margin-bottom: 20px;
+}
+
+.hero-grid,
+.auth-form,
+.admin-form,
+.tour-form form {
+  display: grid;
+  gap: 12px;
+}
+
+.hero-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fdfdff;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.btn,
+.tab,
+.hostel-card {
+  border: none;
+  cursor: pointer;
+}
+
+.btn {
+  background: var(--brand);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--brand);
+  color: var(--brand);
+}
+
+.auth-chip {
+  padding: 10px 12px;
+  background: #e9f8f4;
+  border-radius: 999px;
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.list-panel,
+.detail-panel,
+.auth-panel {
+  min-height: 100%;
+}
+
+.hostel-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.hostel-card {
+  width: 100%;
+  text-align: left;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.hostel-card-top,
+.detail-header,
+.gallery-title-row,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hostel-card p,
+.hostel-card small,
+.detail-panel p,
+.detail-panel li,
+.agent-box p,
+.stat-card span {
+  color: var(--muted);
+}
+
+.gallery-grid,
+.thumb-strip {
+  display: grid;
+  gap: 12px;
+}
+
+.gallery-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.gallery-grid img,
+.thumb-strip img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.thumb-strip {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.room-tabs,
+.mode-switch,
+.stats-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--text);
+}
+
+.tab.active {
+  background: var(--brand);
+  color: white;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.agent-box {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+.tour-form {
+  margin-top: 18px;
+}
+
+.error-text {
+  color: var(--danger);
+  margin: 0;
+}
+
+.success-text {
+  color: var(--success);
+  margin: 8px 0 0;
+}
+
+.admin-shell {
+  max-width: 1200px;
+}
+
+.stats-grid {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  min-width: 170px;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 28px;
+}
+
+.admin-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.admin-listing {
+  background: linear-gradient(180deg, #f9fcff, #eef7ff);
+}
+
+@media (max-width: 980px) {
+  .content-grid,
+  .admin-grid,
+  .hero-grid,
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
