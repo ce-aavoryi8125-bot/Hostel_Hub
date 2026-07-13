@@ -243,6 +243,24 @@
       "page": "student-browse",
       "user": "Anonymous Student",
       "timestamp": "2026-07-13T17:07:51.458Z"
+    },
+    {
+      "id": "visit-1783964311215",
+      "page": "student-browse",
+      "user": "Anonymous Student",
+      "timestamp": "2026-07-13T17:38:31.215Z"
+    },
+    {
+      "id": "visit-1783964328808",
+      "page": "student-browse",
+      "user": "Hostel Hub Admin (admin)",
+      "timestamp": "2026-07-13T17:38:48.808Z"
+    },
+    {
+      "id": "visit-1783964345794",
+      "page": "roadmap",
+      "user": "Hostel Hub Admin (admin)",
+      "timestamp": "2026-07-13T17:39:05.794Z"
     }
   ],
   "transactions": [
