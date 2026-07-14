@@ -41,7 +41,7 @@ router.post('/signup', asyncHandler(async (req, res) => {
       role: 'manager'
     });
     const token = createAuthToken(manager._id.toString(), { role: 'manager', name: manager.name });
-    return success(res, { token, user: { id: manager._id, name: manager.name, email: manager.email, role: 'manager' } }, 'Manager account created', 201);
+    return res.status(201).json({ token, user: { id: manager._id, name: manager.name, email: manager.email, role: 'manager' }, message: 'Manager account created' });
   } else {
     const student = await Student.create({
       name:      String(name).trim(),
@@ -52,7 +52,7 @@ router.post('/signup', asyncHandler(async (req, res) => {
       role:      'student'
     });
     const token = createAuthToken(student._id.toString(), { role: 'student', name: student.name });
-    return success(res, { token, user: { id: student._id, name: student.name, email: student.email, role: 'student' } }, 'Student account created', 201);
+    return res.status(201).json({ token, user: { id: student._id, name: student.name, email: student.email, role: 'student' }, message: 'Student account created' });
   }
 }));
 
@@ -73,7 +73,7 @@ router.post('/login', asyncHandler(async (req, res) => {
   if (!ok) return error(res, 'Invalid credentials', 401);
 
   const token = createAuthToken(user._id.toString(), { role, name: user.name });
-  return success(res, { token, user: { id: user._id, name: user.name, email: user.email, role } }, `${role.charAt(0).toUpperCase() + role.slice(1)} login successful`);
+  return res.json({ token, user: { id: user._id, name: user.name, email: user.email, role }, message: `${role.charAt(0).toUpperCase() + role.slice(1)} login successful` });
 }));
 
 // GET ME
@@ -85,7 +85,7 @@ router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
 
   if (!user) return error(res, 'User not found', 404);
 
-  return success(res, { user: { id: user._id, name: user.name, email: user.email, role: req.user.role, bankDetails: user.bankDetails || null, phone: user.phone || '' } });
+  return res.json({ user: { id: user._id, name: user.name, email: user.email, role: req.user.role, bankDetails: user.bankDetails || null, phone: user.phone || '' } });
 }));
 
 module.exports = router;
