@@ -6,6 +6,9 @@ const tourRequestSchema = new mongoose.Schema({
   name:       { type: String, required: true, trim: true },
   phone:      { type: String, required: true, trim: true },
   message:    { type: String, default: '' }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true, transform(doc, ret) { ret.id = ret._id; delete ret.__v; } }
+});
 
 module.exports = mongoose.model('TourRequest', tourRequestSchema);

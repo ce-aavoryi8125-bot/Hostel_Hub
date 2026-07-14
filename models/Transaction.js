@@ -10,6 +10,9 @@ const transactionSchema = new mongoose.Schema({
   description:  { type: String, required: true, trim: true },
   studentName:  { type: String, default: '' },
   studentEmail: { type: String, default: '' }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true, transform(doc, ret) { ret.id = ret._id; delete ret.__v; } }
+});
 
 module.exports = mongoose.model('Transaction', transactionSchema);

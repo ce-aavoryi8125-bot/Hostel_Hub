@@ -11,6 +11,9 @@ const managerSchema = new mongoose.Schema({
     accountName:   { type: String, default: '' },
     accountNumber: { type: String, default: '' }
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true, transform(doc, ret) { ret.id = ret._id; delete ret.__v; } }
+});
 
 module.exports = mongoose.model('Manager', managerSchema);

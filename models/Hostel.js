@@ -30,6 +30,9 @@ const hostelSchema = new mongoose.Schema({
     '4-in-a-room': { type: roomTypeSchema, default: null }
   },
   visits:       { type: Number, default: 0 }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true, transform(doc, ret) { ret.id = ret._id; delete ret.__v; } }
+});
 
 module.exports = mongoose.model('Hostel', hostelSchema);

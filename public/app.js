@@ -593,7 +593,7 @@ function Footer({ setActiveTab }) {
       </div>
       <div className="footer-bottom">
         <div className="footer-bottom-inner">
-          <span>© 2025 Hostel Hub Tarkwa. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Hostel Hub Tarkwa. All rights reserved.</span>
           <span>Built for UMaT students · Tarkwa, Western Region</span>
         </div>
       </div>
@@ -915,6 +915,7 @@ function StudentApp() {
   const [checkoutActive, setCheckoutActive] = useState(false);
   const [checkoutRoom, setCheckoutRoom] = useState('');
   const [checkoutPrice, setCheckoutPrice] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const loadHostels = async () => {
     setLoading(true);
@@ -986,12 +987,15 @@ function StudentApp() {
             <div className="nav-logo-icon">🏠</div>
             <span className="nav-logo-text">Hostel Hub</span>
           </div>
-          <div className="nav-links">
-            <button className={`nav-link ${activeTab === 'browse' ? 'active' : ''}`} onClick={() => setActiveTab('browse')}>Browse Hostels</button>
-            <button className={`nav-link ${activeTab === 'pitch' ? 'active' : ''}`} onClick={() => setActiveTab('pitch')}>List Your Hostel</button>
-            <button className={`nav-link ${activeTab === 'roadmap' ? 'active' : ''}`} onClick={() => setActiveTab('roadmap')}>Our Story</button>
+          
+          <div className={`nav-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
+          
+          <div className={`nav-links ${mobileMenuOpen ? 'open' : ''}`}>
+            <button className={`nav-link ${activeTab === 'browse' ? 'active' : ''}`} onClick={() => { setActiveTab('browse'); setMobileMenuOpen(false); }}>Browse Hostels</button>
+            <button className={`nav-link ${activeTab === 'pitch' ? 'active' : ''}`} onClick={() => { setActiveTab('pitch'); setMobileMenuOpen(false); }}>List Your Hostel</button>
+            <button className={`nav-link ${activeTab === 'roadmap' ? 'active' : ''}`} onClick={() => { setActiveTab('roadmap'); setMobileMenuOpen(false); }}>Our Story</button>
             {user?.role === 'manager' && (
-              <button className={`nav-link ${activeTab === 'manager-finances' ? 'active' : ''}`} onClick={() => setActiveTab('manager-finances')}>Manager Portal</button>
+              <button className={`nav-link ${activeTab === 'manager-finances' ? 'active' : ''}`} onClick={() => { setActiveTab('manager-finances'); setMobileMenuOpen(false); }}>Manager Portal</button>
             )}
           </div>
           <div className="nav-actions">
@@ -999,17 +1003,20 @@ function StudentApp() {
               <>
                 <div className="nav-user-chip">
                   <div className="nav-user-avatar">{user.name?.[0] || '?'}</div>
-                  {user.name?.split(' ')[0]}
+                  <span className="nav-user-name-desktop">{user.name?.split(' ')[0]}</span>
                 </div>
-                <button className="btn btn-outline btn-sm" onClick={handleLogout}>Logout</button>
+                <button className="btn btn-outline btn-sm nav-logout-btn" onClick={handleLogout}>Logout</button>
               </>
             ) : (
               <>
-                <button className="btn btn-outline btn-sm" onClick={() => { setAuthMode('login'); setShowAuth(true); }}>Sign In</button>
-                <button className="btn btn-primary btn-sm" onClick={() => { setAuthMode('signup'); setShowAuth(true); }}>Sign Up Free</button>
+                <button className="btn btn-outline btn-sm nav-signin-btn" onClick={() => { setAuthMode('login'); setShowAuth(true); }}>Sign In</button>
+                <button className="btn btn-primary btn-sm nav-signup-btn" onClick={() => { setAuthMode('signup'); setShowAuth(true); }}>Sign Up Free</button>
               </>
             )}
           </div>
+          <button className="hamburger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
       </nav>
 
@@ -1281,7 +1288,7 @@ function AdminApp() {
   const [stats, setStats] = useState(null);
   const [hostels, setHostels] = useState([]);
   const [visits, setVisits] = useState([]);
-  const [loginForm, setLoginForm] = useState({ email: 'admin@hostelhub.dev', password: 'admin123' });
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [form, setForm] = useState({
