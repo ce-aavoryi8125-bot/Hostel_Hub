@@ -1003,7 +1003,7 @@ function StudentApp() {
               <>
                 <div className="nav-user-chip">
                   <div className="nav-user-avatar">{user.name?.[0] || '?'}</div>
-                  <span className="nav-user-name-desktop">{user.name?.split(' ')[0]}</span>
+                  <span className="nav-user-name-desktop">{(user.name || '').split(' ')[0]}</span>
                 </div>
                 <button className="btn btn-outline btn-sm nav-logout-btn" onClick={handleLogout}>Logout</button>
               </>
