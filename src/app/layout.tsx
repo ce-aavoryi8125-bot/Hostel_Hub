@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+
+import { AppContextProvider } from "@/context/AppContext";
 
 export const metadata: Metadata = {
   title: "Hostel Hub - UMaT Student Accommodation Discovery & Booking",
@@ -21,12 +21,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-full flex flex-col pt-[72px]">
-        <Navbar />
-        <main className="flex-grow">
+      <body className="min-h-full flex flex-col">
+        <AppContextProvider>
           {children}
-        </main>
-        <Footer />
+        </AppContextProvider>
       </body>
     </html>
   );
