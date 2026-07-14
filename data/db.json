@@ -106,7 +106,7 @@
       "kitchenPhotos": [
         "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=900&q=80"
       ],
-      "visits": 0
+      "visits": 2
     },
     {
       "id": "hostel-2",
@@ -151,10 +151,20 @@
       "kitchenPhotos": [
         "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80"
       ],
-      "visits": 0
+      "visits": 1
     }
   ],
-  "tourRequests": [],
+  "tourRequests": [
+    {
+      "id": "request-1783984566507",
+      "hostelId": "hostel-2",
+      "hostelName": "University Vista Lodge",
+      "name": "John Owusu",
+      "phone": "+233 24 111 2222",
+      "message": "afternoon",
+      "createdAt": "2026-07-13T23:16:06.507Z"
+    }
+  ],
   "visits": [
     {
       "id": "visit-seed-1",
@@ -167,6 +177,24 @@
       "page": "student-browse",
       "user": "Test Student",
       "timestamp": "2026-07-13T18:41:05.114Z"
+    },
+    {
+      "id": "visit-1783975403946",
+      "page": "hostel-detail",
+      "user": "Visited Tarkwa Hostel Haven",
+      "timestamp": "2026-07-13T20:43:23.946Z"
+    },
+    {
+      "id": "visit-1783984525027",
+      "page": "hostel-detail",
+      "user": "Visited University Vista Lodge",
+      "timestamp": "2026-07-13T23:15:25.027Z"
+    },
+    {
+      "id": "visit-1783984584715",
+      "page": "hostel-detail",
+      "user": "Visited Tarkwa Hostel Haven",
+      "timestamp": "2026-07-13T23:16:24.715Z"
     }
   ],
   "transactions": [
@@ -228,6 +256,28 @@
       "category": "Maintenance",
       "description": "Wifi router replacement",
       "createdAt": "2026-07-13T18:41:05.144Z"
+    },
+    {
+      "id": "tx-1783984398790",
+      "managerId": "manager-1",
+      "hostelId": null,
+      "hostelName": "General Operation",
+      "type": "expense",
+      "amount": 200,
+      "category": "Electricity",
+      "description": "Electricity bill",
+      "createdAt": "2026-07-13T23:13:18.791Z"
+    },
+    {
+      "id": "tx-1783984453763",
+      "managerId": "manager-1",
+      "hostelId": null,
+      "hostelName": "General Operation",
+      "type": "expense",
+      "amount": 150,
+      "category": "Maintenance",
+      "description": "fixed washroom",
+      "createdAt": "2026-07-13T23:14:13.763Z"
     }
   ]
 }
