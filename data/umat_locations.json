@@ -1,0 +1,282 @@
+[
+  {
+    "name": "UMaT Main Gate / Campus",
+    "category": "Landmark",
+    "latitude": 5.29773,
+    "longitude": -2.00052,
+    "students_commonly_live_here": "Yes",
+    "description": "The university's main campus, including Chamber of Mines Hall, Gold Refinery Hall and K.T. Hall halls of residence; reference point for this dataset.",
+    "coordinate_confidence": "High",
+    "source_note": "OSM (Mapcarta building node)"
+  },
+  {
+    "name": "Tarkwa (town centre)",
+    "category": "Town",
+    "latitude": 5.2976,
+    "longitude": -1.9922,
+    "students_commonly_live_here": "Yes",
+    "description": "Capital of Tarkwa-Nsuaem Municipal District and the main commercial hub students travel to for shopping, banking, and transport; centre of Tarkwa Zongo, the market, and lorry station.",
+    "coordinate_confidence": "High",
+    "source_note": "Triangulated from OSM relative-distance data"
+  },
+  {
+    "name": "Tarkwa Mine (Goldfields concession)",
+    "category": "Landmark",
+    "latitude": 5.3074,
+    "longitude": -2.0139,
+    "students_commonly_live_here": "No",
+    "description": "Large open-cast gold mine on the northwest edge of town; well-known directional landmark, not a residential area.",
+    "coordinate_confidence": "High",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "Tamso",
+    "category": "Community",
+    "latitude": 5.2976,
+    "longitude": -1.9699,
+    "students_commonly_live_here": "Yes",
+    "description": "Historic Fante settlement immediately south/adjacent to Tarkwa town and very close to the UMaT campus; popular, affordable student residential area with the Tamso Estate Junction landmark.",
+    "coordinate_confidence": "Medium",
+    "source_note": "Triangulated from OSM relative-distance data"
+  },
+  {
+    "name": "Aboso",
+    "category": "Town",
+    "latitude": 5.3483,
+    "longitude": -1.9528,
+    "students_commonly_live_here": "Yes",
+    "description": "Former Wassa West district capital ~9km from UMaT; a well-known older mining town with growing student residential uptake, connected by the Tarkwa-Aboso road.",
+    "coordinate_confidence": "High",
+    "source_note": "OSM (Mapcarta), pop. 9,945 (78th most populous settlement in Ghana)"
+  },
+  {
+    "name": "Akoon",
+    "category": "Community",
+    "latitude": 5.279,
+    "longitude": -2.014,
+    "students_commonly_live_here": "Yes",
+    "description": "One of the Fante communities named alongside Efuanta, Tamso, Aboso and Kwabedu as founding settlements of the Tarkwa area; close to campus and popular with students.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Named in Wikipedia's Tarkwa article; coordinates estimated (west of UMaT)"
+  },
+  {
+    "name": "Efuanta",
+    "category": "Community",
+    "latitude": 5.3048,
+    "longitude": -1.9899,
+    "students_commonly_live_here": "Yes",
+    "description": "Locality near Kokwadu and Fawutinibua, close to Tarkwa Senior High School and TNA Park; one of the historic Fante founding communities.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM locality near Kokwadu (Mapcarta)"
+  },
+  {
+    "name": "Kwabedu",
+    "category": "Community",
+    "latitude": 5.285,
+    "longitude": -2.025,
+    "students_commonly_live_here": "Unknown",
+    "description": "One of the historic Fante communities of the Tarkwa area, named alongside Efuanta, Tamso, Aboso and Akoon.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Named in Wikipedia's Tarkwa article; coordinates estimated"
+  },
+  {
+    "name": "Nsuaem",
+    "category": "Town",
+    "latitude": 5.265,
+    "longitude": -1.975,
+    "students_commonly_live_here": "Unknown",
+    "description": "Paired with Tarkwa in the district's full name (Tarkwa-Nsuaem Municipal District); a distinct settlement southeast of Tarkwa town.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "District name reference; coordinates estimated"
+  },
+  {
+    "name": "Nkamponase",
+    "category": "Suburb",
+    "latitude": 5.301,
+    "longitude": -2.008,
+    "students_commonly_live_here": "Yes",
+    "description": "Residential suburb just north/northwest of the UMaT campus, well known to students (Assemblies of God Nkamponase and Nkamponase Community Center are local landmarks); one of the most popular off-campus hostel areas.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM POI references (Mapcarta business listings); coordinates estimated from POI cluster"
+  },
+  {
+    "name": "Bankyim",
+    "category": "Suburb",
+    "latitude": 5.294,
+    "longitude": -1.997,
+    "students_commonly_live_here": "Yes",
+    "description": "Residential area near central Tarkwa with its own taxi rank (Bankyim Taxi Rank); popular student residential pocket.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM POI reference (taxi rank); coordinates estimated"
+  },
+  {
+    "name": "Akyempim",
+    "category": "Suburb",
+    "latitude": 5.296,
+    "longitude": -1.999,
+    "students_commonly_live_here": "Yes",
+    "description": "Residential area close to Tarkwa town centre with its own taxi rank (Akyempim Taxi Rank); near Bankyim.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM POI reference (taxi rank); coordinates estimated"
+  },
+  {
+    "name": "New Atuabo",
+    "category": "Community",
+    "latitude": 5.31,
+    "longitude": -1.99,
+    "students_commonly_live_here": "Yes",
+    "description": "Residential community on the outskirts of Tarkwa commonly referenced by students and hostel operators for affordable accommodation.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Locally known community name; coordinates estimated"
+  },
+  {
+    "name": "Apinto",
+    "category": "Suburb",
+    "latitude": 5.305,
+    "longitude": -1.995,
+    "students_commonly_live_here": "Unknown",
+    "description": "Seat of the Apinto Stool of the Wassa Fiase Traditional Area, under whose jurisdiction the Tarkwa mine's host communities fall; a named traditional/administrative area in Tarkwa.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Named in Gold Fields Ghana community-relations documentation; coordinates estimated"
+  },
+  {
+    "name": "Tarkwa Station (Railway Station)",
+    "category": "Landmark",
+    "latitude": 5.302,
+    "longitude": -1.993,
+    "students_commonly_live_here": "No",
+    "description": "Historic railway station in Tarkwa town, a well-known directional landmark (also referenced via Tarkwa Railways Police Station).",
+    "coordinate_confidence": "Estimated",
+    "source_note": "OSM POI reference (Tarkwa Railways Police Station); coordinates estimated"
+  },
+  {
+    "name": "Tarkwa Zongo",
+    "category": "Suburb",
+    "latitude": 5.307,
+    "longitude": -1.997,
+    "students_commonly_live_here": "Yes",
+    "description": "Predominantly Muslim/migrant-community suburb of Tarkwa town; a distinct, well-known named area.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Referenced on Mapcarta; coordinates estimated"
+  },
+  {
+    "name": "Brahabebome",
+    "category": "Suburb",
+    "latitude": 5.309,
+    "longitude": -2.001,
+    "students_commonly_live_here": "Unknown",
+    "description": "Residential suburb of Tarkwa referenced alongside Tarkwa Zongo as a notable named place within the town.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Referenced on Mapcarta; coordinates estimated"
+  },
+  {
+    "name": "Cyanide Park",
+    "category": "Landmark",
+    "latitude": 5.3135,
+    "longitude": -2.0139,
+    "students_commonly_live_here": "No",
+    "description": "Named landmark/area east of the Tarkwa mine concession, used locally for directions.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "Maxam",
+    "category": "Commercial area",
+    "latitude": 5.3126,
+    "longitude": -2.0104,
+    "students_commonly_live_here": "No",
+    "description": "Small commercial/office node in central Tarkwa near Winners' Chapel International and TNA Park; used as a directional landmark.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "TNA Park (Tarkwa & Abosso Stadium)",
+    "category": "Landmark",
+    "latitude": 5.29773,
+    "longitude": -1.989,
+    "students_commonly_live_here": "No",
+    "description": "Multi-use stadium in Tarkwa, home ground of Ghana Premier League side Medeama SC; major directional landmark near UMaT.",
+    "coordinate_confidence": "High",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "Tarkwa Senior High School (Tarkwa SHS)",
+    "category": "Landmark",
+    "latitude": 5.2937,
+    "longitude": -2.0086,
+    "students_commonly_live_here": "No",
+    "description": "Well-known co-educational SHS immediately southwest of the UMaT campus; commonly used as a directional reference point.",
+    "coordinate_confidence": "High",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "Banso",
+    "category": "Community",
+    "latitude": 5.3089,
+    "longitude": -1.982,
+    "students_commonly_live_here": "Unknown",
+    "description": "Community southeast of Tarkwa town along local roads; used as an OSM locality reference point.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "Akyem",
+    "category": "Community",
+    "latitude": 5.296,
+    "longitude": -1.951,
+    "students_commonly_live_here": "Unknown",
+    "description": "Residential area south of Tarkwa town, roughly 5km from the UMaT campus.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM (Mapcarta, tagged residential area)"
+  },
+  {
+    "name": "Kokwadu",
+    "category": "Community",
+    "latitude": 5.3048,
+    "longitude": -1.9899,
+    "students_commonly_live_here": "Unknown",
+    "description": "Locality southwest of Tarkwa town near the mine concession and Efuanta.",
+    "coordinate_confidence": "Medium",
+    "source_note": "OSM (Mapcarta)"
+  },
+  {
+    "name": "Nsuta",
+    "category": "Town",
+    "latitude": 5.335,
+    "longitude": -1.95,
+    "students_commonly_live_here": "Unknown",
+    "description": "Site of the Nsuta manganese mine, situated east of Tarkwa town; a well-known directional/industrial landmark for the wider area.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "Wikipedia (Tarkwa article: 'Nsuta manganese mine is situated to the east of the town'); coordinates estimated"
+  },
+  {
+    "name": "Bogoso",
+    "category": "Town",
+    "latitude": 5.57,
+    "longitude": -1.95,
+    "students_commonly_live_here": "No",
+    "description": "Mining town roughly 30km north of Tarkwa along the Tarkwa-Bogoso road; outside typical daily commuting range but a well-known regional landmark near the edge of the 30km radius.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "General regional geography; coordinates estimated, verify before use"
+  },
+  {
+    "name": "Huni Valley",
+    "category": "Town",
+    "latitude": 5.44,
+    "longitude": -1.88,
+    "students_commonly_live_here": "No",
+    "description": "District capital of Prestea-Huni Valley Municipal District, northeast of Tarkwa; a recognizable regional town near the edge of the 30km radius.",
+    "coordinate_confidence": "Estimated",
+    "source_note": "General regional geography; coordinates estimated, verify before use"
+  },
+  {
+    "name": "Damang",
+    "category": "Community",
+    "latitude": 5.46,
+    "longitude": -1.83,
+    "students_commonly_live_here": "No",
+    "description": "Site of the Damang gold mine, about 30km northeast of Tarkwa; at the outer edge of/just beyond the 30km radius.",
+    "coordinate_confidence": "Medium",
+    "source_note": "Gold Fields Ghana documentation ('Damang mine ~30km NE of Tarkwa'); coordinates estimated"
+  }
+]
