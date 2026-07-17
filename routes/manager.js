@@ -137,6 +137,193 @@ router.get('/finances', asyncHandler(async (req, res) => {
 }));
 
 // ─────────────────────────────────────────────
+// PAYMENT METHODS
+// ─────────────────────────────────────────────
+router.get('/payment-methods', asyncHandler(async (req, res) => {
+  const { data: hostels } = await supabase.from('hostels').select('id, name').eq('manager_id', req.user.sub);
+  const hostelIds = (hostels || []).map((h) => h.id);
+  if (!hostelIds.length) return res.json({ paymentMethods: [] });
+
+  const { data: methods, error: dbErr } = await supabase
+    .from('hostel_payment_methods')
+    .select('*')
+    .in('hostel_id', hostelIds)
+    .order('created_at', { ascending: false });
+
+  if (dbErr) throw dbErr;
+  return res.json({ paymentMethods: methods || [] });
+}));
+
+router.post('/payment-methods', asyncHandler(async (req, res) => {
+  const { hostelId, paymentType, accountName, accountNumber, bankName, branch, qrCode, instructions, isActive } = req.body;
+  if (!hostelId || !paymentType || !accountName || !accountNumber) {
+    return error(res, 'Hostel, payment type, account name, and account number are required', 400);
+  }
+
+  const { data: hostel } = await supabase
+    .from('hostels')
+    .select('id')
+    .eq('id', hostelId)
+    .eq('manager_id', req.user.sub)
+    .maybeSingle();
+
+  if (!hostel) return error(res, 'Hostel not found', 404);
+
+  const { data: method, error: dbErr } = await supabase
+    .from('hostel_payment_methods')
+    .insert({
+      hostel_id: hostelId,
+      payment_type: String(paymentType).trim(),
+      account_name: String(accountName).trim(),
+      account_number: String(accountNumber).trim(),
+      bank_name: String(bankName || '').trim(),
+      branch: String(branch || '').trim(),
+      qr_code: String(qrCode || '').trim(),
+      instructions: String(instructions || '').trim(),
+      is_active: isActive !== false,
+    })
+    .select()
+    .single();
+
+  if (dbErr) throw dbErr;
+  return res.status(201).json({ message: 'Payment method saved', paymentMethod: method });
+}));
+
+router.put('/payment-methods/:id', asyncHandler(async (req, res) => {
+  const { data: method, error: findErr } = await supabase
+    .from('hostel_payment_methods')
+    .select('*')
+    .eq('id', req.params.id)
+    .maybeSingle();
+
+  if (findErr) throw findErr;
+  if (!method) return error(res, 'Payment method not found', 404);
+
+  const { data: hostel } = await supabase
+    .from('hostels')
+    .select('id')
+    .eq('id', method.hostel_id)
+    .eq('manager_id', req.user.sub)
+    .maybeSingle();
+
+  if (!hostel) return error(res, 'Payment method not found', 404);
+
+  const { data: updated, error: dbErr } = await supabase
+    .from('hostel_payment_methods')
+    .update(req.body)
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (dbErr) throw dbErr;
+  return res.json({ message: 'Payment method updated', paymentMethod: updated });
+}));
+
+router.delete('/payment-methods/:id', asyncHandler(async (req, res) => {
+  const { data: method, error: findErr } = await supabase
+    .from('hostel_payment_methods')
+    .select('*')
+    .eq('id', req.params.id)
+    .maybeSingle();
+
+  if (findErr) throw findErr;
+  if (!method) return error(res, 'Payment method not found', 404);
+
+  const { data: hostel } = await supabase
+    .from('hostels')
+    .select('id')
+    .eq('id', method.hostel_id)
+    .eq('manager_id', req.user.sub)
+    .maybeSingle();
+
+  if (!hostel) return error(res, 'Payment method not found', 404);
+
+  const { error: dbErr } = await supabase.from('hostel_payment_methods').delete().eq('id', req.params.id);
+  if (dbErr) throw dbErr;
+  return res.json({ message: 'Payment method removed' });
+}));
+
+// ─────────────────────────────────────────────
+// HOSTEL DOCUMENTS
+// ─────────────────────────────────────────────
+router.get('/documents', asyncHandler(async (req, res) => {
+  const { data: hostels } = await supabase.from('hostels').select('id').eq('manager_id', req.user.sub);
+  const hostelIds = (hostels || []).map((h) => h.id);
+  if (!hostelIds.length) return res.json({ documents: [] });
+
+  const { data: documents, error: dbErr } = await supabase
+    .from('hostel_documents')
+    .select('*')
+    .in('hostel_id', hostelIds)
+    .order('created_at', { ascending: false });
+
+  if (dbErr) throw dbErr;
+  return res.json({ documents: documents || [] });
+}));
+
+router.post('/documents', asyncHandler(async (req, res) => {
+  const { hostelId, title, documentType, description, fileUrl } = req.body;
+  if (!hostelId || !title || !documentType || !fileUrl) {
+    return error(res, 'Hostel, title, document type, and file URL are required', 400);
+  }
+
+  const { data: hostel } = await supabase
+    .from('hostels')
+    .select('id')
+    .eq('id', hostelId)
+    .eq('manager_id', req.user.sub)
+    .maybeSingle();
+
+  if (!hostel) return error(res, 'Hostel not found', 404);
+
+  const { data: document, error: dbErr } = await supabase
+    .from('hostel_documents')
+    .insert({
+      hostel_id: hostelId,
+      title: String(title).trim(),
+      document_type: String(documentType).trim(),
+      description: String(description || '').trim(),
+      file_url: String(fileUrl).trim(),
+      file_type: String(fileUrl).trim().toLowerCase().endsWith('.pdf') ? 'pdf' : 'file',
+    })
+    .select()
+    .single();
+
+  if (dbErr) throw dbErr;
+  return res.status(201).json({ message: 'Hostel document uploaded', document });
+}));
+
+router.delete('/documents/:id', asyncHandler(async (req, res) => {
+  const { data: document } = await supabase.from('hostel_documents').select('*').eq('id', req.params.id).maybeSingle();
+  if (!document) return error(res, 'Document not found', 404);
+
+  const { data: hostel } = await supabase.from('hostels').select('id').eq('id', document.hostel_id).eq('manager_id', req.user.sub).maybeSingle();
+  if (!hostel) return error(res, 'Document not found', 404);
+
+  const { error: dbErr } = await supabase.from('hostel_documents').delete().eq('id', req.params.id);
+  if (dbErr) throw dbErr;
+  return res.json({ message: 'Document removed' });
+}));
+
+// ─────────────────────────────────────────────
+// AGREEMENTS
+// ─────────────────────────────────────────────
+router.get('/agreements', asyncHandler(async (req, res) => {
+  const { data: hostels } = await supabase.from('hostels').select('id').eq('manager_id', req.user.sub);
+  const hostelIds = (hostels || []).map((h) => h.id);
+  if (!hostelIds.length) return res.json({ agreements: [] });
+
+  const { data: agreements, error: dbErr } = await supabase
+    .from('student_agreements')
+    .select('*')
+    .in('hostel_id', hostelIds)
+    .order('created_at', { ascending: false });
+
+  if (dbErr) throw dbErr;
+  return res.json({ agreements: agreements || [] });
+}));
+
+// ─────────────────────────────────────────────
 // ROOMS
 // ─────────────────────────────────────────────
 router.post('/rooms', asyncHandler(async (req, res) => {

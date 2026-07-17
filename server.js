@@ -18,12 +18,16 @@ const hostelRoutes   = require('./routes/hostels');
 const locationRoutes = require('./routes/locations');
 const managerRoutes  = require('./routes/manager');
 const adminRoutes    = require('./routes/admin');
+const paymentRoutes  = require('./routes/payments');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // Connect to Supabase and seed defaults
 connectDB();
+
+// ── Paystack webhook needs raw body — mount BEFORE express.json() ──
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
 // Global Middleware
 app.use(cors());
@@ -60,6 +64,12 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/hostels', hostelRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// Payment callback page — Paystack redirects here after payment
+app.get('/payment-callback', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'payment-callback.html'));
+});
 
 // Fallback: serve HTML app
 app.get('*', (req, res) => {

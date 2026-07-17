@@ -131,12 +131,28 @@ router.get('/student/portal', authenticateToken, asyncHandler(async (req, res) =
   const { data: student } = await supabase.from('students').select('*').eq('id', req.user.sub).maybeSingle();
   if (!student) return error(res, 'Student not found', 404);
 
-  const [{ data: announcements }, { data: maintenance }] = await Promise.all([
+  const [{ data: announcements }, { data: maintenance }, { data: payments }, { data: submissions }, { data: receipts }, { data: agreements }, { data: notifications }, { data: documents }] = await Promise.all([
     supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(10),
-    supabase.from('maintenance_requests').select('*').eq('student_id', student.id).order('created_at', { ascending: false })
+    supabase.from('maintenance_requests').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
+    supabase.from('payments').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
+    supabase.from('payment_submissions').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
+    supabase.from('receipts').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
+    supabase.from('student_agreements').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
+    supabase.from('notifications').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
+    supabase.from('hostel_documents').select('*').eq('hostel_id', student.hostel_id || '').order('created_at', { ascending: false })
   ]);
 
-  return res.json({ student, announcements: announcements || [], maintenance: maintenance || [] });
+  return res.json({
+    student,
+    announcements: announcements || [],
+    maintenance: maintenance || [],
+    payments: payments || [],
+    paymentSubmissions: submissions || [],
+    receipts: receipts || [],
+    agreements: agreements || [],
+    notifications: notifications || [],
+    documents: documents || [],
+  });
 }));
 
 // ─────────────────────────────────────────────

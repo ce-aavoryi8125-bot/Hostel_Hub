@@ -14,21 +14,26 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'), false);
+    cb(new Error('Invalid file type. Only JPEG, PNG, WebP, and PDF are allowed.'), false);
   }
 };
 
+// Standard upload (legacy, 12 files)
 const upload = multer({
   storage,
   fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit per file
-    files: 12 // Max 12 files at once
-  }
+  limits: { fileSize: 5 * 1024 * 1024, files: 12 }
 });
 
-module.exports = { upload, UPLOADS_DIR };
+// Extended upload for hostel wizard — accepts any named fields, up to 80 files total
+const uploadHostel = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 8 * 1024 * 1024, files: 80 }
+});
+
+module.exports = { upload, uploadHostel, UPLOADS_DIR };

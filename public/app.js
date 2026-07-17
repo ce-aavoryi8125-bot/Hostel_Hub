@@ -1,4 +1,4 @@
-const { useState, useEffect, useRef } = React;
+﻿const { useState, useEffect, useRef } = React;
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-GH', {
@@ -2129,6 +2129,7 @@ function StudentApp() {
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
   const [managerSection, setManagerSection] = useState('overview');
   const [studentSection, setStudentSection] = useState('profile');
+  const [studentSection, setStudentSection] = useState('profile');
   const [activeTheme, setActiveTheme] = useState(() => {
     if (typeof window === 'undefined') return 'system';
     return localStorage.getItem('hostelHubTheme') || 'system';
@@ -2232,6 +2233,9 @@ function StudentApp() {
     if (newUser?.role === 'manager') {
       setActiveTab('manager-finances');
       setManagerSection('overview');
+    } else if (newUser?.role === 'student') {
+      setActiveTab('student-portal');
+      setStudentSection('profile');
     } else if (newUser?.role === 'student') {
       setActiveTab('student-portal');
       setStudentSection('profile');
@@ -2498,6 +2502,11 @@ function StudentApp() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* STUDENT PORTAL */}
+      {activeTab === 'student-portal' && user?.role === 'student' && (
+        <StudentPortal token={token} user={user} activeSection={studentSection} setActiveSection={setStudentSection} />
       )}
 
       {/* STUDENT PORTAL */}
