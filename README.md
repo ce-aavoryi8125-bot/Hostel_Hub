@@ -1,87 +1,67 @@
-# Hostel Hub UMaT
+# Hostel Hub
 
-Hostel Hub is a student accommodation discovery and room reservation platform for students of the **University of Mines and Technology (UMaT)** in Tarkwa, Ghana.
+Hostel Hub is a student accommodation discovery platform designed for students of the University of Mines and Technology (UMaT) in Tarkwa, Ghana. The platform helps students find nearby hostels, compare room types and prices, view photos, contact agents, and request hostel tours more easily.
 
-This repository combines two complementary stacks:
+## Overview
 
-| Stack | Purpose | Entry point |
-|-------|---------|-------------|
-| **Next.js frontend** (`src/`) | Premium UI — landing, explore, auth, bookings, manager portal | `npm run dev:web` → http://localhost:3000 |
-| **Express API** (`server.js`, `routes/`) | Supabase-backed REST API, JWT auth, uploads, Paystack payments | `npm run dev:api` → http://localhost:3001 |
-| **Legacy static UI** (`public/`) | Original HTML/JS admin and student interfaces | http://localhost:3001/index.html |
-
----
+Hostel Hub is built as a lightweight MVP with a Node.js/Express backend and a React-via-CDN frontend. It is tailored for the Tarkwa student housing market, where students need a faster and more reliable way to discover safe and affordable hostels close to campus.
 
 ## Features
 
-**Frontend (Bernard — Next.js)**
-- Landing page with UMaT branding and glassmorphic design
-- Explore hostels, auth flow, bookings, checkout
-- Manager portal (properties, bookings)
-- Mock booking context (to be wired to Express API)
+- Student signup and login
+- Hostel search with filters
+- Room type-based browsing (1-in-a-room, 2-in-a-room, 3-in-a-room, 4-in-a-room)
+- Hostel photos, kitchen photos, and facility views
+- Google Maps integration
+- Tour request and agent contact flow
+- Visit tracking for hostel analytics
+- Admin dashboard with summary stats
+- Hostel listing creation from the admin interface
 
-**Backend (Albert — Express + Supabase)**
-- JWT authentication, role-based access (student, manager, admin)
-- Hostel CRUD, gallery uploads, location filters
-- Paystack payment integration
-- PostgreSQL schema via Supabase
+## Tech Stack
 
----
-
-## Getting Started
-
-```bash
-npm install
-```
-
-Run both stacks in separate terminals:
-
-```bash
-# Terminal 1 — Express API (port 3001)
-npm run dev:api
-
-# Terminal 2 — Next.js frontend (port 3000)
-npm run dev:web
-```
-
-Set up environment variables in `.env` (see `.env.example` if present):
-
-```
-PORT=3001
-SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-JWT_SECRET=...
-PAYSTACK_SECRET_KEY=...
-```
-
----
-
-## Verification
-
-```bash
-# Next.js lint & type check
-npm run lint
-npx tsc --noEmit
-
-# Next.js production build
-npm run build
-```
-
----
+- Backend: Node.js, Express.js
+- Authentication: JWT, bcryptjs
+- File uploads: multer
+- Frontend: React via CDN, HTML, CSS
+- Database: JSON file-based storage for the MVP
 
 ## Project Structure
 
-```
-src/                  Next.js App Router (Bernard's frontend)
-server.js             Express API entry point
-routes/               API route handlers
-public/               Legacy static HTML/JS UI
-supabase/             Database schema and migrations
-config/               Supabase client bootstrap
-```
+- `server.js` — Express API and static file serving
+- `public/` — Student and admin web interfaces
+- `data/db.json` — JSON-based data store for the MVP
 
----
+## Getting Started
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Start the server:
+
+   ```bash
+   node server.js
+   ```
+
+3. Open the app in your browser:
+
+   - Student UI: `http://localhost:3000/index.html`
+   - Admin UI: `http://localhost:3000/admin.html`
+
+## Demo Admin Access
+
+- Email: `admin@hostelhub.dev`
+- Password: `admin123`
+
+## Planned Upgrades
+
+- PostgreSQL migration
+- Cloudinary or AWS S3 for media storage
+- Paystack or MoMo payment integration for listing fees
 
 ## License
 
-MIT License — see [LICENSE](LICENSE).
+This project is licensed under the MIT License.

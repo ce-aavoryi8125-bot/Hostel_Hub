@@ -21,7 +21,7 @@ const adminRoutes    = require('./routes/admin');
 const paymentRoutes  = require('./routes/payments');
 
 const app  = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Connect to Supabase and seed defaults
 connectDB();
