@@ -1,67 +1,126 @@
-# Hostel Hub
+# 🏠 Hostel Hub v4
 
-Hostel Hub is a student accommodation discovery platform designed for students of the University of Mines and Technology (UMaT) in Tarkwa, Ghana. The platform helps students find nearby hostels, compare room types and prices, view photos, contact agents, and request hostel tours more easily.
+**Premium Student Hostel Management Platform — UMaT Tarkwa**
 
-## Overview
+Three completely independent portals: **Student** | **Hostel Manager** | **Administrator**
 
-Hostel Hub is built as a lightweight MVP with a Node.js/Express backend and a React-via-CDN frontend. It is tailored for the Tarkwa student housing market, where students need a faster and more reliable way to discover safe and affordable hostels close to campus.
+---
 
-## Features
+## Quick Start
 
-- Student signup and login
-- Hostel search with filters
-- Room type-based browsing (1-in-a-room, 2-in-a-room, 3-in-a-room, 4-in-a-room)
-- Hostel photos, kitchen photos, and facility views
-- Google Maps integration
-- Tour request and agent contact flow
-- Visit tracking for hostel analytics
-- Admin dashboard with summary stats
-- Hostel listing creation from the admin interface
+```bash
+npm install
+npm start
+# → http://localhost:3000
+```
+
+---
+
+## ⚠️ Required: Run Database Migration
+
+Before using the platform, you **must** run the migration SQL in your Supabase dashboard:
+
+1. Go to **Supabase Dashboard → SQL Editor → New Query**
+2. Open `supabase/MIGRATION_REQUIRED.sql`
+3. Paste the contents and click **Run**
+
+This adds required columns (`status`, `verification_status`, `is_published`, etc.) and creates audit/log tables.
+
+> The app works without the migration but with reduced functionality (manager approval workflow, hostel verification, payment methods, audit logs).
+
+---
+
+## Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Administrator | admin@hostelhub.dev | admin123 |
+| Hostel Manager | manager@hostelhub.dev | manager123 |
+| Student | Sign up on the platform | — |
+
+---
+
+## Role-Based Portals
+
+### 🎓 Student Portal
+- Browse and search verified hostels
+- Book rooms and submit payment proof
+- Download official receipts
+- Submit maintenance requests
+- View announcements and notifications
+- Manage profile
+
+### 🏢 Manager Portal
+- Dashboard with occupancy and financial summary
+- Manage residents (add/remove/view)
+- Manage rooms and availability
+- Verify student payment submissions → auto-generates receipts
+- Log expenses and track finances
+- Send announcements to residents
+- Handle maintenance requests
+- Configure payment methods (bank, MoMo)
+
+### 🛡️ Administrator Portal
+- Platform-wide statistics dashboard
+- **Hostel management**: create, verify, publish, assign managers
+- **Manager applications**: review → approve/reject → assign to hostels
+- **User management**: students, managers, admins
+- **Verification queue**: approve pending hostels
+- **Audit log**: complete trail of all admin actions
+- Platform announcements
+- Payment overview
+
+---
+
+## Manager Onboarding Workflow
+
+1. Prospective manager **signs up** (fills in hostel application details)
+2. Account is set to **Pending** — cannot access manager features
+3. Administrator **reviews** the application
+4. Administrator **approves** → account becomes Active
+5. Administrator **creates** the hostel record
+6. Administrator **assigns** the manager to the hostel
+7. Manager **logs in** and manages only their assigned hostel
+
+---
+
+## Hostel Verification Workflow
+
+1. Admin creates hostel (status: `pending`)
+2. Admin sets to `under_review` (optional)
+3. Admin physically inspects hostel
+4. Admin **approves** → hostel gets `verified` badge + published to public
+5. Verified badge appears on cards, detail pages, receipts
+
+---
+
+## Payment Workflow
+
+1. Student **books** a room → system creates payment + booking records
+2. Student **pays** the manager directly (MoMo, bank transfer, etc.)
+3. Student **uploads proof** (reference number + optional screenshot)
+4. Manager **reviews** the submission
+5. Manager **approves** → system auto-generates an official receipt
+6. Student **downloads** the receipt as proof of payment
+
+---
+
+## Environment Variables (`.env`)
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+JWT_SECRET=your-jwt-secret-min-32-chars
+PORT=3000
+```
+
+---
 
 ## Tech Stack
 
-- Backend: Node.js, Express.js
-- Authentication: JWT, bcryptjs
-- File uploads: multer
-- Frontend: React via CDN, HTML, CSS
-- Database: JSON file-based storage for the MVP
-
-## Project Structure
-
-- `server.js` — Express API and static file serving
-- `public/` — Student and admin web interfaces
-- `data/db.json` — JSON-based data store for the MVP
-
-## Getting Started
-
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Start the server:
-
-   ```bash
-   node server.js
-   ```
-
-3. Open the app in your browser:
-
-   - Student UI: `http://localhost:3000/index.html`
-   - Admin UI: `http://localhost:3000/admin.html`
-
-## Demo Admin Access
-
-- Email: `admin@hostelhub.dev`
-- Password: `admin123`
-
-## Planned Upgrades
-
-- PostgreSQL migration
-- Cloudinary or AWS S3 for media storage
-- Paystack or MoMo payment integration for listing fees
-
-## License
-
-This project is licensed under the MIT License.
+- **Backend**: Node.js + Express
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Custom JWT (bcryptjs + jsonwebtoken)
+- **Frontend**: React 18 (CDN) + Babel Standalone
+- **Styles**: Custom CSS Design System (Inter + Plus Jakarta Sans)
+- **Uploads**: Multer (local disk)

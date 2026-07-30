@@ -1,5 +1,4 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const { authenticateToken, requireManager } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { error } = require('../utils/apiResponse');
@@ -7,67 +6,75 @@ const supabase = require('../config/supabase');
 
 const router = express.Router();
 
-router.use(authenticateToken, requireManager);
+// Require active manager — reads from user_profiles + JWT claim
+function requireActiveManager(req, res, next) {
+  if (!req.user || req.user.role !== 'manager') return error(res, 'Manager access only', 403);
+  next();
+}
+
+async function checkManagerActive(req, res, next) {
+  // Check user_profiles for current status (authoritative)
+  const { data: up } = await supabase
+    .from('user_profiles')
+    .select('id, status')
+    .eq('id', req.user.sub)
+    .maybeSingle();
+
+  // Fall back to JWT claim if user_profiles doesn't exist yet
+  const effectiveStatus = up?.status || req.user.status || 'active';
+
+  if (effectiveStatus !== 'active') {
+    return error(res, 'Your account is pending approval. You cannot access manager features until your application is reviewed.', 403);
+  }
+  next();
+}
+
+router.use(authenticateToken, requireActiveManager, asyncHandler(checkManagerActive));
 
 // ─────────────────────────────────────────────
 // MANAGER PROFILE
 // ─────────────────────────────────────────────
 router.get('/profile', asyncHandler(async (req, res) => {
-  const { data: manager } = await supabase
-    .from('managers')
-    .select('id, name, email, phone, role, bank_name, account_name, account_number')
-    .eq('id', req.user.sub)
-    .maybeSingle();
+  const isMissing = e => e && (e.message?.includes('schema cache') || e.message?.includes('not found') || e.message?.includes('does not exist'));
+  const { data: up, error: upErr } = await supabase.from('user_profiles').select('*').eq('id', req.user.sub).maybeSingle();
+  if (upErr && !isMissing(upErr)) return error(res, 'Manager not found', 404);
+  const { data: mp } = !isMissing(upErr) ? await supabase.from('manager_profiles').select('*').eq('id', req.user.sub).maybeSingle() : { data: null };
 
-  if (!manager) return error(res, 'Manager not found', 404);
+  // Fall back to JWT claims when user_profiles table doesn't exist
+  const profile = up || { id: req.user.sub, name: req.user.name, email: req.user.email, role: 'manager', status: req.user.status || 'active', phone: '' };
 
   return res.json({
     profile: {
-      id: manager.id,
-      name: manager.name,
-      email: manager.email,
-      phone: manager.phone,
-      role: manager.role,
-      bankDetails: manager.bank_name
-        ? { bankName: manager.bank_name, accountName: manager.account_name, accountNumber: manager.account_number }
-        : null,
-      accountStatus: 'Active'
+      id:      profile.id,
+      name:    profile.name || req.user.name,
+      email:   profile.email || req.user.email,
+      phone:   profile.phone || mp?.phone || '',
+      role:    'manager',
+      bankDetails: mp?.bank_name ? { bankName: mp.bank_name, accountName: mp.account_name, accountNumber: mp.account_number } : null,
+      accountStatus: profile.status || 'active',
     }
   });
 }));
 
 router.put('/profile', asyncHandler(async (req, res) => {
   const { name, email, phone, password } = req.body;
+  const updates = {};
+  if (name  && String(name).trim())  updates.name  = String(name).trim();
+  if (phone && String(phone).trim()) updates.phone = String(phone).trim();
+  if (email && String(email).trim()) updates.email = String(email).trim().toLowerCase();
 
-  const { data: manager } = await supabase.from('managers').select('*').eq('id', req.user.sub).maybeSingle();
-  if (!manager) return error(res, 'Manager not found', 404);
-
-  const nextName  = String(name  || manager.name).trim();
-  const nextEmail = String(email || manager.email).trim().toLowerCase();
-  const nextPhone = String(phone || manager.phone).trim();
-
-  if (!nextName || !nextEmail || !nextPhone) {
-    return error(res, 'Name, email, and phone are required', 400);
+  if (Object.keys(updates).length > 0) {
+    // Update user_profiles (non-fatal if table missing)
+    try { await supabase.from('user_profiles').update(updates).eq('id', req.user.sub); } catch {}
+    const authUpdates = {};
+    if (updates.name)  authUpdates.user_metadata = { name: updates.name };
+    if (updates.email) authUpdates.email = updates.email;
+    if (password && String(password).trim()) authUpdates.password = String(password).trim();
+    if (Object.keys(authUpdates).length > 0) {
+      await supabase.auth.admin.updateUserById(req.user.sub, authUpdates);
+    }
   }
-
-  const updates = { name: nextName, email: nextEmail, phone: nextPhone };
-  if (password && String(password).trim()) {
-    updates.password = await bcrypt.hash(String(password).trim(), 10);
-  }
-
-  const { data: updated, error: dbErr } = await supabase
-    .from('managers')
-    .update(updates)
-    .eq('id', req.user.sub)
-    .select()
-    .single();
-
-  if (dbErr) throw dbErr;
-
-  return res.json({
-    message: 'Profile updated successfully',
-    profile: { id: updated.id, name: updated.name, email: updated.email, phone: updated.phone, role: updated.role, accountStatus: 'Active' }
-  });
+  return res.json({ message: 'Profile updated successfully', profile: { id: req.user.sub, ...updates, role: 'manager', accountStatus: 'Active' } });
 }));
 
 // ─────────────────────────────────────────────
@@ -76,52 +83,64 @@ router.put('/profile', asyncHandler(async (req, res) => {
 router.get('/finances', asyncHandler(async (req, res) => {
   const managerId = req.user.sub;
 
-  const { data: manager } = await supabase.from('managers').select('*').eq('id', managerId).maybeSingle();
-  if (!manager) return error(res, 'Manager not found', 404);
+  // Try user_profiles first; fall back to just using req.user if table missing
+  const { data: up, error: upErr } = await supabase.from('user_profiles').select('*').eq('id', managerId).maybeSingle();
+  const isMissing = e => e && (e.message?.includes('schema cache') || e.message?.includes('not found') || e.code === '42P01' || e.message?.includes('does not exist'));
+  if (upErr && !isMissing(upErr)) return error(res, 'Manager not found', 404);
 
-  // Get hostels owned by this manager
+  const mp = upErr ? null : (await supabase.from('manager_profiles').select('*').eq('id', managerId).maybeSingle()).data;
+
+  // Hostels assigned to this manager
   const { data: hostels } = await supabase.from('hostels').select('id, name').eq('manager_id', managerId);
   const hostelIds = (hostels || []).map(h => h.id);
 
-  // Parallel fetch
-  const [{ data: txs }, { data: rooms }, { data: students }, { data: maintenance }, { data: announcements }] = await Promise.all([
+  const [txRes, roomRes, maintRes, annRes, tourRes] = await Promise.all([
     supabase.from('transactions').select('*').eq('manager_id', managerId).order('created_at', { ascending: false }),
     hostelIds.length
       ? supabase.from('rooms').select('*').in('hostel_id', hostelIds).order('room_number', { ascending: true })
       : Promise.resolve({ data: [] }),
-    supabase.from('students').select('*').eq('manager_id', managerId).order('created_at', { ascending: false }),
     hostelIds.length
       ? supabase.from('maintenance_requests').select('*').in('hostel_id', hostelIds).order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
     hostelIds.length
       ? supabase.from('announcements').select('*').in('hostel_id', hostelIds).order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+    hostelIds.length
+      ? supabase.from('tour_requests').select('*').in('hostel_id', hostelIds).order('created_at', { ascending: false })
       : Promise.resolve({ data: [] })
   ]);
 
-  const allTxs         = txs          || [];
-  const allRooms       = rooms        || [];
-  const allStudents    = students     || [];
-  const allMaintenance = maintenance  || [];
-  const allAnnouncements = announcements || [];
+  // Get residents from user_profiles where student has been assigned to one of our hostels
+  const { data: residents } = hostelIds.length
+    ? await supabase.from('student_profiles').select('*, user_profiles(id,name,email,phone,status)').in('hostel_id', hostelIds)
+    : { data: [] };
+
+  const allTxs       = txRes.data   || [];
+  const allRooms     = roomRes.data  || [];
+  const allResidents = residents     || [];
+  const allMaint     = maintRes.data || [];
+  const allAnn       = annRes.data   || [];
+  const allTours     = tourRes.data  || [];
 
   const totalIncome  = allTxs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const totalExpense = allTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
   const totalRooms     = allRooms.length;
   const occupiedRooms  = allRooms.filter(r => r.occupied >= r.capacity).length;
   const availableRooms = allRooms.filter(r => r.occupied < r.capacity).length;
-  const pendingPayments = allStudents.filter(s => s.balance > 0).length;
-  const pendingMaintenance = allMaintenance.filter(m => m.status === 'Pending').length;
 
   return res.json({
-    bankDetails: manager.bank_name
-      ? { bankName: manager.bank_name, accountName: manager.account_name, accountNumber: manager.account_number }
-      : null,
+    bankDetails: mp?.bank_name ? {
+      bankName:      mp.bank_name,
+      accountName:   mp.account_name,
+      accountNumber: mp.account_number,
+    } : null,
     transactions:  allTxs,
     hostels:       (hostels || []).map(h => ({ id: h.id, name: h.name })),
     rooms:         allRooms,
-    students:      allStudents,
-    maintenance:   allMaintenance,
-    announcements: allAnnouncements,
+    students:      allResidents,
+    maintenance:   allMaint,
+    announcements: allAnn,
+    tourRequests:  allTours,
     totalIncome,
     totalExpense,
     netProfit: totalIncome - totalExpense,
@@ -129,9 +148,10 @@ router.get('/finances', asyncHandler(async (req, res) => {
       totalRooms,
       occupiedRooms,
       availableRooms,
-      totalStudents: allStudents.length,
-      pendingPayments,
-      pendingMaintenance
+      totalStudents:       allResidents.length,
+      pendingPayments:     0,
+      pendingMaintenance:  allMaint.filter(m => m.status === 'Pending').length,
+      pendingTours:        allTours.filter(t => t.status === 'pending').length,
     }
   });
 }));
@@ -150,7 +170,12 @@ router.get('/payment-methods', asyncHandler(async (req, res) => {
     .in('hostel_id', hostelIds)
     .order('created_at', { ascending: false });
 
-  if (dbErr) throw dbErr;
+  if (dbErr) {
+    if (dbErr.message?.includes('schema cache') || dbErr.message?.includes('not found')) {
+      return res.json({ paymentMethods: [], note: 'Run MIGRATION_REQUIRED.sql to enable payment methods.' });
+    }
+    throw dbErr;
+  }
   return res.json({ paymentMethods: methods || [] });
 }));
 
@@ -563,14 +588,40 @@ router.post('/maintenance', asyncHandler(async (req, res) => {
 }));
 
 router.put('/maintenance/:id', asyncHandler(async (req, res) => {
+  const { status, assignedTo, notes, photoAfterUrl } = req.body;
+
+  const updates = {
+    updated_at: new Date().toISOString()
+  };
+  if (status) updates.status = status;
+  if (assignedTo) updates.assigned_to = String(assignedTo).trim();
+  if (notes) updates.notes = String(notes).trim();
+  if (photoAfterUrl) updates.photo_after_url = String(photoAfterUrl).trim();
+  if (status === 'Completed') updates.completed_at = new Date().toISOString();
+
   const { data: request, error: dbErr } = await supabase
     .from('maintenance_requests')
-    .update(req.body)
+    .update(updates)
     .eq('id', req.params.id)
     .select()
     .single();
 
   if (dbErr || !request) return error(res, 'Maintenance request not found', 404);
+
+  // Send notification to student if student_id is set
+  if (request.student_id) {
+    try {
+      await supabase.from('notifications').insert({
+        user_id: request.student_id,
+        title: `Maintenance Request ${status || 'Updated'}`,
+        message: `Your maintenance request "${request.title}" for ${request.hostel_name || 'your hostel'} is now: ${status || 'Updated'}.`,
+        type: status === 'Completed' ? 'success' : status === 'Rejected' ? 'danger' : 'info',
+        entity_type: 'maintenance_request',
+        entity_id: request.id
+      });
+    } catch {}
+  }
+
   return res.json({ message: 'Maintenance request updated', request });
 }));
 
@@ -664,23 +715,43 @@ router.post('/bank-account', asyncHandler(async (req, res) => {
   const { bankName, accountName, accountNumber } = req.body;
   if (!bankName || !accountName || !accountNumber) return error(res, 'All bank details are required', 400);
 
-  const { data: manager, error: dbErr } = await supabase
-    .from('managers')
-    .update({
-      bank_name:      String(bankName).trim(),
-      account_name:   String(accountName).trim(),
-      account_number: String(accountNumber).trim()
-    })
-    .eq('id', req.user.sub)
-    .select()
-    .single();
-
-  if (dbErr || !manager) return error(res, 'Manager not found', 404);
+  await supabase.from('manager_profiles').upsert({
+    id:             req.user.sub,
+    bank_name:      String(bankName).trim(),
+    account_name:   String(accountName).trim(),
+    account_number: String(accountNumber).trim(),
+  });
 
   return res.json({
     message: 'Bank account linked successfully',
-    bankDetails: { bankName: manager.bank_name, accountName: manager.account_name, accountNumber: manager.account_number }
+    bankDetails: { bankName, accountName, accountNumber }
   });
 }));
 
+// ─────────────────────────────────────────────
+// TOUR REQUESTS
+// ─────────────────────────────────────────────
+router.patch('/tour-requests/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, notes } = req.body;
+  const VALID = ['pending', 'confirmed', 'cancelled', 'completed'];
+  if (!VALID.includes(status)) return error(res, `Invalid status. Must be one of: ${VALID.join(', ')}`, 400);
+
+  // Verify the manager owns this tour request's hostel
+  const { data: tr } = await supabase.from('tour_requests').select('id, hostel_id, name').eq('id', id).maybeSingle();
+  if (!tr) return error(res, 'Tour request not found', 404);
+
+  const { data: hostel } = await supabase.from('hostels').select('id, manager_id').eq('id', tr.hostel_id).maybeSingle();
+  if (!hostel || hostel.manager_id !== req.user.sub) return error(res, 'Unauthorized: this tour request does not belong to your hostel', 403);
+
+  const updates = { status, updated_at: new Date().toISOString() };
+  if (notes) updates.special_notes = String(notes).trim();
+
+  const { data: updated, error: dbErr } = await supabase.from('tour_requests').update(updates).eq('id', id).select().single();
+  if (dbErr) throw dbErr;
+
+  return res.json({ message: `Tour request ${status} successfully`, tourRequest: updated });
+}));
+
 module.exports = router;
+

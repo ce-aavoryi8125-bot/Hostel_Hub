@@ -1,38 +1,33 @@
-const jwt = require('jsonwebtoken');
+const supabase = require('../config/supabase');
 const { error } = require('../utils/apiResponse');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hostel-hub-secret-key-2024';
-
 /**
- * Creates a signed JWT for the given user.
- * @param {string} subject  - user UUID
- * @param {object} extra    - additional claims (role, name, email…)
+ * Verify a Supabase JWT using auth.getUser().
+ * Populates req.user = { sub, email, role, name, status }
  */
-function createAuthToken(subject, extra = {}) {
-  return jwt.sign({ sub: subject, ...extra }, JWT_SECRET, { expiresIn: '7d' });
-}
-
-/**
- * Verifies the custom JWT issued by our /api/login and /api/signup endpoints.
- * req.user shape: { sub, email, role, name }
- */
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
   if (!token) return error(res, 'Missing bearer token', 401);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const { data, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !data?.user) return error(res, 'Invalid or expired token', 401);
+
+    const u = data.user;
+    const meta = u.user_metadata || {};
+    const appMeta = u.app_metadata || {};
+
     req.user = {
-      sub:   decoded.sub,
-      email: decoded.email,
-      role:  decoded.role  || 'student',
-      name:  decoded.name  || ''
+      sub:    u.id,
+      email:  u.email,
+      role:   appMeta.role  || meta.role  || 'student',
+      name:   meta.name     || meta.full_name || u.email,
+      status: appMeta.status || meta.status || 'active',
     };
     next();
   } catch (err) {
-    return error(res, 'Invalid or expired token', 401);
+    return error(res, 'Token verification failed', 401);
   }
 }
 
@@ -51,6 +46,11 @@ function requireManagerOrAdmin(req, res, next) {
     return error(res, 'Manager or Admin access only', 403);
   }
   next();
+}
+
+// Legacy helper — kept for backward compat but no longer signs custom JWTs
+function createAuthToken() {
+  throw new Error('createAuthToken is deprecated — use Supabase Auth');
 }
 
 module.exports = {

@@ -1,123 +1,430 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const { createAuthToken, authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { error } = require('../utils/apiResponse');
 const supabase = require('../config/supabase');
+const { supabaseAnon } = require('../config/supabase');
 
 const router = express.Router();
 
 // ─────────────────────────────────────────────
-// SIGN UP
+// Helper: ensure user_profile row exists
+// ─────────────────────────────────────────────
+async function ensureUserProfile(authUser) {
+  const meta = authUser.user_metadata || {};
+  const appMeta = authUser.app_metadata || {};
+  const role   = appMeta.role  || meta.role  || 'student';
+  const name   = meta.name     || meta.full_name || authUser.email.split('@')[0];
+  const status = appMeta.status || meta.status || (role === 'manager' ? 'pending' : 'active');
+
+  const { data: existing } = await supabase
+    .from('user_profiles')
+    .select('id, role, status, name')
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  if (!existing) {
+    await supabase.from('user_profiles').insert({
+      id:     authUser.id,
+      email:  authUser.email,
+      name,
+      role,
+      status,
+      phone:  meta.phone || '',
+    }).select().single();
+  }
+
+  return { role: existing?.role || role, status: existing?.status || status, name: existing?.name || name };
+}
+
+// ─────────────────────────────────────────────
+// SIGN UP — Student
 // ─────────────────────────────────────────────
 router.post('/signup', asyncHandler(async (req, res) => {
-  const { role = 'student', name, email, phone, password, studentId } = req.body;
+  const { name, email, phone, password, studentIndex, institution, faculty, department, level } = req.body;
 
-  if (!name || !email || !phone || !password || (role === 'student' && !studentId)) {
-    return error(res, 'All required signup fields must be filled', 400);
+  if (!name || !email || !password) {
+    return error(res, 'Name, email, and password are required', 400);
   }
+  if (!phone) return error(res, 'Phone number is required', 400);
 
   const emailLower = String(email).trim().toLowerCase();
 
-  // Check for duplicate email across all user tables
-  const [{ data: dupStudent }, { data: dupManager }, { data: dupAdmin }] = await Promise.all([
-    supabase.from('students').select('id').eq('email', emailLower).maybeSingle(),
-    supabase.from('managers').select('id').eq('email', emailLower).maybeSingle(),
-    supabase.from('admins').select('id').eq('email', emailLower).maybeSingle()
-  ]);
+  // Create auth user
+  const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+    email: emailLower,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      role: 'student',
+      student_index: String(studentIndex || '').trim(),
+      institution: String(institution || 'UMaT').trim(),
+    }
+  });
 
-  if (dupStudent || dupManager || dupAdmin) {
-    return error(res, 'An account with this email already exists', 409);
+  if (authErr) {
+    if (authErr.message?.includes('already registered') || authErr.message?.includes('already been registered')) {
+      return error(res, 'An account with this email already exists', 409);
+    }
+    throw authErr;
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const authUser = authData.user;
 
-  if (role === 'manager') {
-    const { data: manager, error: dbErr } = await supabase
-      .from('managers')
-      .insert({ name: String(name).trim(), email: emailLower, phone: String(phone).trim(), password: passwordHash, role: 'manager' })
-      .select()
-      .single();
+  // Set role in app_metadata (authoritative)
+  await supabase.auth.admin.updateUserById(authUser.id, {
+    app_metadata: { role: 'student', status: 'active' }
+  });
 
-    if (dbErr) throw dbErr;
-    const token = createAuthToken(manager.id, { role: 'manager', name: manager.name });
-    return res.status(201).json({ token, user: { id: manager.id, name: manager.name, email: manager.email, role: 'manager' }, message: 'Manager account created' });
-  } else {
-    const { data: student, error: dbErr } = await supabase
-      .from('students')
-      .insert({ name: String(name).trim(), email: emailLower, phone: String(phone).trim(), student_id: String(studentId).trim(), password: passwordHash, role: 'student' })
-      .select()
-      .single();
+  // Create user_profile row
+  await supabase.from('user_profiles').insert({
+    id: authUser.id, email: emailLower,
+    name: String(name).trim(), role: 'student', status: 'active',
+    phone: String(phone).trim(),
+  });
 
-    if (dbErr) throw dbErr;
-    const token = createAuthToken(student.id, { role: 'student', name: student.name });
-    return res.status(201).json({ token, user: { id: student.id, name: student.name, email: student.email, role: 'student' }, message: 'Student account created' });
+  // Create student_profile row
+  await supabase.from('student_profiles').insert({
+    id:           authUser.id,
+    student_index: String(studentIndex || '').trim(),
+    institution:  String(institution || 'UMaT').trim(),
+    faculty:      String(faculty || '').trim(),
+    department:   String(department || '').trim(),
+    level:        String(level || '').trim(),
+  });
+
+  // Sign in to get session tokens
+  const { data: session, error: signInErr } = await supabaseAnon.auth.signInWithPassword({
+    email: emailLower, password
+  });
+
+  if (signInErr) {
+    return res.status(201).json({
+      message: 'Account created successfully. Please sign in.',
+      user: { id: authUser.id, email: emailLower, role: 'student', status: 'active', name: String(name).trim() }
+    });
   }
+
+  return res.status(201).json({
+    token:         session.session.access_token,
+    refresh_token: session.session.refresh_token,
+    user: {
+      id:     authUser.id,
+      email:  emailLower,
+      name:   String(name).trim(),
+      role:   'student',
+      status: 'active',
+    },
+    message: 'Account created successfully'
+  });
 }));
 
 // ─────────────────────────────────────────────
-// LOGIN
+// MANAGER APPLICATION — Removed for Security
+// Managers can only be onboarded by Administrators
+// ─────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────
+// LOGIN — Email + Password
 // ─────────────────────────────────────────────
 router.post('/login', asyncHandler(async (req, res) => {
   const { email = '', password = '' } = req.body;
+  if (!email || !password) return error(res, 'Email and password are required', 400);
+
   const emailLower = String(email).trim().toLowerCase();
 
-  let user = null;
-  let role = 'student';
+  // Sign in via anon client
+  const { data, error: signInErr } = await supabaseAnon.auth.signInWithPassword({
+    email: emailLower,
+    password
+  });
 
-  const { data: student } = await supabase.from('students').select('*').eq('email', emailLower).maybeSingle();
-  if (student) { user = student; role = 'student'; }
-
-  if (!user) {
-    const { data: manager } = await supabase.from('managers').select('*').eq('email', emailLower).maybeSingle();
-    if (manager) { user = manager; role = 'manager'; }
+  if (signInErr) {
+    // Supabase returns "Invalid login credentials" for wrong password
+    return error(res, 'Invalid email or password', 401);
   }
 
-  if (!user) {
-    const { data: admin } = await supabase.from('admins').select('*').eq('email', emailLower).maybeSingle();
-    if (admin) { user = admin; role = 'admin'; }
-  }
+  const authUser = data.user;
+  const session  = data.session;
+  const meta     = authUser.user_metadata  || {};
+  const appMeta  = authUser.app_metadata   || {};
 
-  if (!user) return error(res, 'Invalid credentials', 401);
+  // Authoritative role comes from app_metadata (set server-side)
+  // Fall back to user_metadata for older accounts
+  const role   = appMeta.role   || meta.role   || 'student';
+  const status = appMeta.status || meta.status || 'active';
+  const name   = meta.name      || meta.full_name || emailLower.split('@')[0];
 
-  const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return error(res, 'Invalid credentials', 401);
+  // Ensure profile row exists (handles Google OAuth first-login)
+  await ensureUserProfile(authUser);
 
-  const token = createAuthToken(user.id, { role, name: user.name });
-  return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role }, message: `${role.charAt(0).toUpperCase() + role.slice(1)} login successful` });
+  const requireReset = appMeta.force_password_reset === true;
+
+  return res.json({
+    token:         session.access_token,
+    refresh_token: session.refresh_token,
+    expires_in:    session.expires_in,
+    user: { id: authUser.id, email: authUser.email, name, role, status, requireReset },
+    message: 'Signed in successfully'
+  });
 }));
 
 // ─────────────────────────────────────────────
-// GET ME
+// RESET TEMPORARY PASSWORD
 // ─────────────────────────────────────────────
-router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
-  let user = null;
-  const { role, sub } = req.user;
-
-  if (role === 'manager') {
-    const { data } = await supabase.from('managers').select('*').eq('id', sub).maybeSingle();
-    user = data;
-  } else if (role === 'admin') {
-    const { data } = await supabase.from('admins').select('*').eq('id', sub).maybeSingle();
-    user = data;
-  } else {
-    const { data } = await supabase.from('students').select('*').eq('id', sub).maybeSingle();
-    user = data;
+router.post('/reset-temporary-password', authenticateToken, asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    return error(res, 'New password must be at least 8 characters long', 400);
   }
 
-  if (!user) return error(res, 'User not found', 404);
+  // Update password and clear force_password_reset flag
+  const { error: updateErr } = await supabase.auth.admin.updateUserById(req.user.id, {
+    password: newPassword,
+    app_metadata: { force_password_reset: false }
+  });
+
+  if (updateErr) throw updateErr;
+
+  return res.json({ message: 'Password updated successfully' });
+}));
+
+
+// ─────────────────────────────────────────────
+// REFRESH TOKEN
+// ─────────────────────────────────────────────
+router.post('/refresh', asyncHandler(async (req, res) => {
+  const { refresh_token } = req.body;
+  if (!refresh_token) return error(res, 'refresh_token is required', 400);
+
+  const { data, error: refreshErr } = await supabaseAnon.auth.refreshSession({ refresh_token });
+  if (refreshErr) return error(res, 'Session expired. Please sign in again.', 401);
+
+  const u = data.user;
+  const s = data.session;
+  const meta    = u.user_metadata || {};
+  const appMeta = u.app_metadata  || {};
+  const role    = appMeta.role   || meta.role   || 'student';
+  const status  = appMeta.status || meta.status || 'active';
 
   return res.json({
+    token:         s.access_token,
+    refresh_token: s.refresh_token,
+    expires_in:    s.expires_in,
+    user: { id: u.id, email: u.email, name: meta.name || u.email, role, status }
+  });
+}));
+
+// ─────────────────────────────────────────────
+// FORGOT PASSWORD — Send reset email
+// ─────────────────────────────────────────────
+router.post('/forgot-password', asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) return error(res, 'Email is required', 400);
+
+  // We use generateLink to create a reset link
+  const { error: linkErr } = await supabase.auth.admin.generateLink({
+    type: 'recovery',
+    email: String(email).trim().toLowerCase(),
+  });
+
+  // Always return success (don't reveal if email exists)
+  if (linkErr) console.warn('Password reset link warn:', linkErr.message);
+
+  return res.json({ message: 'If an account exists with that email, a reset link has been sent.' });
+}));
+
+// ─────────────────────────────────────────────
+// LOGOUT — Invalidate session server-side
+// ─────────────────────────────────────────────
+router.post('/logout', authenticateToken, asyncHandler(async (req, res) => {
+  // Revoke the session
+  try {
+    await supabase.auth.admin.signOut(req.user.sub, 'local');
+  } catch {}
+  return res.json({ message: 'Logged out successfully' });
+}));
+
+// ─────────────────────────────────────────────
+// GET ME — Return current user from token
+// ─────────────────────────────────────────────
+router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
+  const { sub, role, name, email, status } = req.user;
+
+  // Get profile from database for full details
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', sub)
+    .maybeSingle();
+
+  const effectiveRole   = profile?.role   || role;
+  const effectiveStatus = profile?.status || status;
+
+  const responseUser = {
+    id:     sub,
+    email:  email || profile?.email,
+    name:   profile?.name || name,
+    role:   effectiveRole,
+    status: effectiveStatus,
+    phone:  profile?.phone || '',
+    avatarUrl: profile?.avatar_url || '',
+  };
+
+  // Add student-specific data
+  if (effectiveRole === 'student') {
+    const { data: sp } = await supabase.from('student_profiles').select('*').eq('id', sub).maybeSingle();
+    if (sp) {
+      Object.assign(responseUser, {
+        studentIndex:      sp.student_index || '',
+        institution:       sp.institution || 'UMaT',
+        faculty:           sp.faculty || '',
+        department:        sp.department || '',
+        programme:         sp.programme || sp.department || 'Engineering',
+        level:             sp.level || '100',
+        gender:            sp.gender || 'Not specified',
+        emergencyContact:  sp.emergency_contact || '',
+        profilePhoto:      sp.profile_photo || profile?.avatar_url || '',
+        preferredRoomType: sp.preferred_room_type || '1_in_room',
+        currentHostelId:   sp.current_hostel_id || null,
+        hostelName:        sp.hostel_name || '',
+        roomNumber:        sp.room_number || '',
+        balance:           sp.balance || 0,
+        createdAt:         sp.created_at || profile?.created_at
+      });
+    }
+  }
+
+  // Add manager-specific data
+  if (effectiveRole === 'manager') {
+    const { data: mp } = await supabase.from('manager_profiles').select('*').eq('id', sub).maybeSingle();
+    if (mp) {
+      Object.assign(responseUser, {
+        applicationInfo: {
+          hostelNameApplied:        mp.hostel_name_applied || '',
+          hostelLocationApplied:    mp.hostel_location_applied || '',
+          hostelDescriptionApplied: mp.hostel_description_applied || '',
+          numRoomsApplied:          mp.num_rooms_applied || 0,
+          capacityApplied:          mp.capacity_applied || 0,
+          applicationNotes:         mp.application_notes || '',
+          rejectionReason:          mp.rejection_reason || '',
+          reviewedAt:               mp.reviewed_at || null,
+          assignedHostelId:         mp.assigned_hostel_id || null,
+        },
+        isVerified: mp.is_verified || false,
+        bankDetails: mp.bank_name ? {
+          bankName:      mp.bank_name,
+          accountName:   mp.account_name,
+          accountNumber: mp.account_number,
+        } : null,
+      });
+    }
+  }
+
+  return res.json({ user: responseUser });
+}));
+
+// ─────────────────────────────────────────────
+// UPDATE STUDENT PROFILE
+// ─────────────────────────────────────────────
+router.put('/student/profile', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'student') return error(res, 'Student access only', 403);
+
+  const { name, phone, emergencyContact, level, programme, preferredRoomType, profilePhoto } = req.body;
+
+  const upUpdates = {};
+  if (name) upUpdates.name = String(name).trim();
+  if (phone) upUpdates.phone = String(phone).trim();
+  if (profilePhoto) upUpdates.avatar_url = String(profilePhoto).trim();
+
+  if (Object.keys(upUpdates).length > 0) {
+    try { await supabase.from('user_profiles').update(upUpdates).eq('id', req.user.sub); } catch {}
+  }
+
+  const spUpdates = {};
+  if (emergencyContact) spUpdates.emergency_contact = String(emergencyContact).trim();
+  if (level)            spUpdates.level = String(level).trim();
+  if (programme)        spUpdates.programme = String(programme).trim();
+  if (preferredRoomType) spUpdates.preferred_room_type = String(preferredRoomType).trim();
+  if (profilePhoto)     spUpdates.profile_photo = String(profilePhoto).trim();
+
+  if (Object.keys(spUpdates).length > 0) {
+    try { await supabase.from('student_profiles').update(spUpdates).eq('id', req.user.sub); } catch {}
+  }
+
+  return res.json({ message: 'Profile updated successfully' });
+}));
+
+// ─────────────────────────────────────────────
+// AI HOSTEL RECOMMENDATIONS FOR STUDENT
+// ─────────────────────────────────────────────
+router.get('/student/recommendations', authenticateToken, asyncHandler(async (req, res) => {
+  const { data: hostels } = await supabase.from('hostels').select('*').eq('is_published', true).limit(20);
+  const { data: sp } = await supabase.from('student_profiles').select('*').eq('id', req.user.sub).maybeSingle();
+
+  const prefType  = sp?.preferred_room_type || '1_in_room';
+  const prefGender = sp?.gender || 'Co-ed';
+
+  // Compute algorithmic recommendation score (0-100%)
+  const list = (hostels || []).map(h => {
+    let score = 85;
+    if (h.verification_status === 'premium_partner') score += 10;
+    if (h.verification_status === 'featured') score += 7;
+    if (h.verification_status === 'verified') score += 5;
+    if (h.gender_preference === 'Co-ed' || h.gender_preference === prefGender) score += 3;
+
+    score = Math.min(99, Math.max(78, score));
+
+    return {
+      ...h,
+      id: h.id,
+      matchScore: score,
+      matchBadge: `${score}% Match for You`
+    };
+  }).sort((a, b) => b.matchScore - a.matchScore);
+
+  return res.json({ recommendations: list });
+}));
+
+// ─────────────────────────────────────────────
+// GOOGLE OAUTH — Exchange code for session
+// ─────────────────────────────────────────────
+router.post('/oauth/google', asyncHandler(async (req, res) => {
+  const { code } = req.body;
+  if (!code) return error(res, 'OAuth code is required', 400);
+
+  const { data, error: oauthErr } = await supabaseAnon.auth.exchangeCodeForSession(code);
+  if (oauthErr) return error(res, 'OAuth authentication failed', 401);
+
+  const authUser = data.user;
+  const meta     = authUser.user_metadata || {};
+  const appMeta  = authUser.app_metadata  || {};
+
+  // For new Google users, set role to 'student' if not set
+  if (!appMeta.role) {
+    await supabase.auth.admin.updateUserById(authUser.id, {
+      app_metadata: { role: 'student', status: 'active' }
+    });
+  }
+
+  const role   = appMeta.role   || 'student';
+  const status = appMeta.status || 'active';
+
+  // Ensure profile exists
+  await ensureUserProfile({ ...authUser, app_metadata: { role, status, ...appMeta } });
+
+  return res.json({
+    token:         data.session.access_token,
+    refresh_token: data.session.refresh_token,
     user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
+      id:     authUser.id,
+      email:  authUser.email,
+      name:   meta.name || meta.full_name || authUser.email,
       role,
-      bankDetails: user.bank_name ? { bankName: user.bank_name, accountName: user.account_name, accountNumber: user.account_number } : null,
-      phone: user.phone || '',
-      hostelName: user.hostel_name || '',
-      roomNumber: user.room_number || '',
-      balance: user.balance || 0
+      status,
     }
   });
 }));
@@ -127,31 +434,43 @@ router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────
 router.get('/student/portal', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'student') return error(res, 'Student access only', 403);
+  const userId = req.user.sub;
+  const isMissing = e => e && (e.message?.includes('schema cache') || e.message?.includes('not found') || e.code === '42P01' || e.message?.includes('does not exist'));
 
-  const { data: student } = await supabase.from('students').select('*').eq('id', req.user.sub).maybeSingle();
-  if (!student) return error(res, 'Student not found', 404);
+  // Try new tables; fall back to empty objects if not yet created
+  let sp = null, up = null;
+  try {
+    const spR = await supabase.from('student_profiles').select('*').eq('id', userId).maybeSingle();
+    if (!isMissing(spR.error)) sp = spR.data;
+  } catch {}
+  try {
+    const upR = await supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle();
+    if (!isMissing(upR.error)) up = upR.data;
+  } catch {}
 
-  const [{ data: announcements }, { data: maintenance }, { data: payments }, { data: submissions }, { data: receipts }, { data: agreements }, { data: notifications }, { data: documents }] = await Promise.all([
-    supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(10),
-    supabase.from('maintenance_requests').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
-    supabase.from('payments').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
-    supabase.from('payment_submissions').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
-    supabase.from('receipts').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
-    supabase.from('student_agreements').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
-    supabase.from('notifications').select('*').eq('student_id', student.id).order('created_at', { ascending: false }),
-    supabase.from('hostel_documents').select('*').eq('hostel_id', student.hostel_id || '').order('created_at', { ascending: false })
+  const student = { ...(up || {}), ...(sp || {}), id: userId, email: req.user.email, name: req.user.name };
+  const hostelId = sp?.hostel_id || null;
+
+  const [maintRes, payRes, subRes, recRes, notifRes, docRes, annRes] = await Promise.all([
+    supabase.from('maintenance_requests').select('*').eq('student_id', userId).order('created_at', { ascending: false }),
+    supabase.from('payments').select('*').eq('student_id', userId).order('created_at', { ascending: false }),
+    supabase.from('payment_submissions').select('*').eq('student_id', userId).order('created_at', { ascending: false }),
+    supabase.from('receipts').select('*').eq('student_id', userId).order('created_at', { ascending: false }),
+    supabase.from('notifications').select('*').eq('student_id', userId).order('created_at', { ascending: false }),
+    hostelId ? supabase.from('hostel_documents').select('*').eq('hostel_id', hostelId) : Promise.resolve({ data: [] }),
+    supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(10),
   ]);
 
   return res.json({
     student,
-    announcements: announcements || [],
-    maintenance: maintenance || [],
-    payments: payments || [],
-    paymentSubmissions: submissions || [],
-    receipts: receipts || [],
-    agreements: agreements || [],
-    notifications: notifications || [],
-    documents: documents || [],
+    maintenance:        isMissing(maintRes.error) ? [] : (maintRes.data || []),
+    payments:           isMissing(payRes.error)   ? [] : (payRes.data   || []),
+    paymentSubmissions: isMissing(subRes.error)   ? [] : (subRes.data   || []),
+    receipts:           isMissing(recRes.error)   ? [] : (recRes.data   || []),
+    notifications:      isMissing(notifRes.error) ? [] : (notifRes.data || []),
+    documents:          isMissing(docRes.error)   ? [] : (docRes.data   || []),
+    announcements:      isMissing(annRes.error)   ? [] : (annRes.data   || []),
+    agreements:         [],
   });
 }));
 
@@ -160,26 +479,39 @@ router.get('/student/portal', authenticateToken, asyncHandler(async (req, res) =
 // ─────────────────────────────────────────────
 router.put('/student/profile', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'student') return error(res, 'Student access only', 403);
+  const { name, phone, gender, institution, faculty, department, level, emergencyContact, studentIndex } = req.body;
+  const isMissing = e => e && (e.message?.includes('schema cache') || e.message?.includes('not found') || e.message?.includes('does not exist'));
 
-  const { name, phone, gender, institution, level, emergencyContact } = req.body;
-  const updates = {};
-  if (name !== undefined)             updates.name              = String(name).trim();
-  if (phone !== undefined)            updates.phone             = String(phone).trim();
-  if (gender !== undefined)           updates.gender            = gender;
-  if (institution !== undefined)      updates.institution       = institution;
-  if (level !== undefined)            updates.level             = level;
-  if (emergencyContact !== undefined) updates.emergency_contact = emergencyContact;
+  const profileUpdates = {};
+  if (name  !== undefined) profileUpdates.name  = String(name).trim();
+  if (phone !== undefined) profileUpdates.phone = String(phone).trim();
+  if (Object.keys(profileUpdates).length > 0) {
+    try {
+      const r = await supabase.from('user_profiles').update(profileUpdates).eq('id', req.user.sub);
+      if (isMissing(r.error) && profileUpdates.name) {
+        await supabase.auth.admin.updateUserById(req.user.sub, { user_metadata: { name: profileUpdates.name } });
+      } else if (!r.error && profileUpdates.name) {
+        await supabase.auth.admin.updateUserById(req.user.sub, { user_metadata: { name: profileUpdates.name } });
+      }
+    } catch {
+      if (profileUpdates.name) await supabase.auth.admin.updateUserById(req.user.sub, { user_metadata: { name: profileUpdates.name } }).catch(() => {});
+    }
+  }
 
-  const { data: student, error: dbErr } = await supabase
-    .from('students')
-    .update(updates)
-    .eq('id', req.user.sub)
-    .select()
-    .single();
+  const spUpdates = {};
+  if (gender           !== undefined) spUpdates.gender            = gender;
+  if (institution      !== undefined) spUpdates.institution       = institution;
+  if (faculty          !== undefined) spUpdates.faculty           = faculty;
+  if (department       !== undefined) spUpdates.department        = department;
+  if (level            !== undefined) spUpdates.level             = level;
+  if (emergencyContact !== undefined) spUpdates.emergency_contact = emergencyContact;
+  if (studentIndex     !== undefined) spUpdates.student_index     = studentIndex;
 
-  if (dbErr) throw dbErr;
-  if (!student) return error(res, 'Student not found', 404);
-  return res.json({ message: 'Profile updated successfully', student });
+  if (Object.keys(spUpdates).length > 0) {
+    try { await supabase.from('student_profiles').upsert({ id: req.user.sub, ...spUpdates }); } catch {}
+  }
+
+  return res.json({ message: 'Profile updated successfully' });
 }));
 
 // ─────────────────────────────────────────────
@@ -188,30 +520,123 @@ router.put('/student/profile', authenticateToken, asyncHandler(async (req, res) 
 router.post('/student/maintenance', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'student') return error(res, 'Student access only', 403);
 
-  const { data: student } = await supabase.from('students').select('*').eq('id', req.user.sub).maybeSingle();
-  if (!student) return error(res, 'Student not found', 404);
+  // Try to get hostel_id from student_profiles (non-fatal if table missing)
+  let hostelId = null;
+  try {
+    const { data: sp } = await supabase.from('student_profiles').select('hostel_id').eq('id', req.user.sub).maybeSingle();
+    hostelId = sp?.hostel_id || null;
+  } catch {}
 
   const { title, description, category = 'General', priority = 'Medium' } = req.body;
   if (!title || !description) return error(res, 'Title and description are required', 400);
 
-  const { data: request, error: dbErr } = await supabase
+  const payload = {
+    student_id:   req.user.sub,
+    student_name: req.user.name,
+    hostel_id:    hostelId,
+    hostel_name:  '',
+    title:        String(title).trim(),
+    description:  String(description).trim(),
+    category, priority, status: 'Pending'
+  };
+
+  let request, dbErr;
+  ({ data: request, error: dbErr } = await supabase
     .from('maintenance_requests')
-    .insert({
-      student_id:   student.id,
-      student_name: student.name,
-      hostel_id:    student.hostel_id || null,
-      hostel_name:  student.hostel_name || '',
-      title:        String(title).trim(),
-      description:  String(description).trim(),
-      category,
-      priority,
-      status:       'Pending'
-    })
-    .select()
-    .single();
+    .insert(payload).select().single());
+
+  // If FK violation (student not in legacy students table), retry without student_id
+  if (dbErr && dbErr.code === '23503' && dbErr.message?.includes('student_id')) {
+    ({ data: request, error: dbErr } = await supabase
+      .from('maintenance_requests')
+      .insert({ ...payload, student_id: null }).select().single());
+  }
 
   if (dbErr) throw dbErr;
   return res.status(201).json({ message: 'Maintenance request submitted', request });
 }));
+
+// ─────────────────────────────────────────────
+// MANAGER APPLICATION STATUS
+// ─────────────────────────────────────────────
+router.get('/manager/application-status', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'manager') return error(res, 'Manager access only', 403);
+
+  const { data: up } = await supabase.from('user_profiles').select('status, name, email, phone').eq('id', req.user.sub).maybeSingle();
+  const { data: mp } = await supabase.from('manager_profiles').select('*').eq('id', req.user.sub).maybeSingle();
+
+  if (!up) return error(res, 'Profile not found', 404);
+
+  return res.json({
+    status: up.status || 'pending',
+    applicationInfo: {
+      name:                     up.name || '',
+      email:                    up.email || '',
+      phone:                    up.phone || mp?.phone || '',
+      hostelNameApplied:        mp?.hostel_name_applied || '',
+      hostelLocationApplied:    mp?.hostel_location_applied || '',
+      hostelDescriptionApplied: mp?.hostel_description_applied || '',
+      numRoomsApplied:          mp?.num_rooms_applied || 0,
+      capacityApplied:          mp?.capacity_applied || 0,
+      applicationNotes:         mp?.application_notes || '',
+      rejectionReason:          mp?.rejection_reason || '',
+      reviewedAt:               mp?.reviewed_at || null,
+    }
+  });
+}));
+
+// ─────────────────────────────────────────────
+// MARK NOTIFICATION AS READ
+// ─────────────────────────────────────────────
+router.patch('/notifications/:id/read', authenticateToken, asyncHandler(async (req, res) => {
+  const { error: dbErr } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', req.params.id)
+    .eq('student_id', req.user.sub);
+  if (dbErr) throw dbErr;
+  return res.json({ message: 'Notification marked as read' });
+}));
+
+// ─────────────────────────────────────────────
+// STUDENT AGREEMENT SUBMISSION
+// ─────────────────────────────────────────────
+router.post('/student/agreement', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'student') return error(res, 'Student access only', 403);
+  const { hostelId, hostelName, roomType, digitalSignature, rulesReviewed, termsAccepted } = req.body;
+  if (!hostelId || !digitalSignature) return error(res, 'Hostel ID and Digital Signature are required', 400);
+
+  const { data: agreement, error: dbErr } = await supabase
+    .from('student_agreements')
+    .insert({
+      student_id: req.user.sub,
+      student_name: req.user.name,
+      hostel_id: hostelId, hostel_name: hostelName || '',
+      room_type: roomType || '',
+      rules_reviewed: !!rulesReviewed, terms_accepted: !!termsAccepted,
+      digital_signature: String(digitalSignature).trim(),
+      signed_at: new Date().toISOString(),
+    }).select().single();
+
+  if (dbErr) throw dbErr;
+  return res.status(201).json({ message: 'Agreement signed', agreement });
+}));
+
+// ─────────────────────────────────────────────
+// Utility: Log admin audit
+// ─────────────────────────────────────────────
+async function logAudit(adminId, adminName, action, entityType, entityId, entityName, details = {}) {
+  try {
+    await supabase.from('admin_audit_log').insert({
+      admin_id: adminId || null,
+      admin_name: String(adminName || 'System'),
+      action: String(action),
+      entity_type: String(entityType || ''),
+      entity_id: String(entityId || ''),
+      entity_name: String(entityName || ''),
+      details: details || {}
+    });
+  } catch { /* non-fatal */ }
+}
 
 module.exports = router;
