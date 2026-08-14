@@ -3,18 +3,76 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hostel Hub — Verified Student Accommodation at UMaT</title>
-    <meta name="description" content="Find and book verified student hostels near UMaT Tarkwa. Secure, trusted, and officially approved." />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <title>Hostel Hub — Verified Student Accommodation at UMaT Tarkwa</title>
+    <meta name="description" content="Find and book verified student hostels near UMaT Tarkwa. Secure, trusted, and officially approved. Zero agent fees, 100% verified." />
+    <meta name="theme-color" content="#1e1b4b" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Premium fonts: Inter + Plus Jakarta Sans -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- App styles -->
     <link rel="stylesheet" href="/styles.css" />
+
+    <style>
+      /* Critical inline: prevent FOUC */
+      html { visibility: hidden; }
+      html.ready { visibility: visible; }
+      @keyframes hh-spin { to { transform: rotate(360deg); } }
+    </style>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('hostelhub_theme') || 'light';
+          var active = saved;
+          if (saved === 'system') {
+            active = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', active);
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; color: #94a3b8; font-family: system-ui, sans-serif;">
+        <div style="width: 48px; height: 48px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #6366f1; border-radius: 50%; animation: hh-spin 0.8s linear infinite;"></div>
+        <div style="margin-top: 16px; font-weight: 600; font-size: 15px; color: #f8fafc; letter-spacing: 0.5px;">Hostel Hub UMaT</div>
+        <div style="margin-top: 4px; font-size: 13px; color: #64748b;">Loading platform...</div>
+      </div>
+    </div>
+
+    <!-- React CDN (development) -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- App scripts -->
+    <script type="text/babel" src="/hostel-detail.js"></script>
+    <script type="text/babel" src="/hostel-wizard.js"></script>
     <script type="text/babel" src="/app.js"></script>
+
+    <script>
+      (function() {
+        function reveal() {
+          if (document.documentElement) {
+            document.documentElement.classList.add('ready');
+          }
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', reveal);
+        } else {
+          reveal();
+        }
+        window.addEventListener('load', reveal);
+        setTimeout(reveal, 150);
+      })();
+    </script>
   </body>
 </html>

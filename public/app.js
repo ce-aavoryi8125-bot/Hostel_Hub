@@ -431,83 +431,61 @@ function AddLocationModal({ initialName, onClose, onAdded, toast }) {
   );
 }
 
-function AdminLocations({ toast }) {
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [addModal, setAddModal] = useState(false);
 
-  const fetchLocations = async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/locations');
-      setLocations(res.locations);
-    } catch(e) { toast(e.message, 'error'); }
-    setLoading(false);
-  };
 
-  useEffect(() => { fetchLocations(); }, []);
+// ── Theme State Hook ───────────────────────────────────────
+function useTheme() {
+  const [themeMode, setThemeModeState] = useState(() => {
+    try { return localStorage.getItem('hostelhub_theme') || 'light'; } catch { return 'light'; }
+  });
 
-  const toggleStatus = async (loc) => {
-    try {
-      await apiFetch(`/api/locations/${loc.id}`, { method: 'PUT', body: JSON.stringify({ active: !loc.active }) });
-      toast(`Location ${!loc.active ? 'activated' : 'deactivated'}`, 'success');
-      fetchLocations();
-    } catch(e) { toast(e.message, 'error'); }
-  };
+  const setThemeMode = useCallback(mode => {
+    setThemeModeState(mode);
+    try { localStorage.setItem('hostelhub_theme', mode); } catch {}
+  }, []);
 
-  return (
-    <div>
-      <div className="admin-loc-header">
-        <div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: 'var(--brand-navy)' }}>Locations Management</h2>
-          <div style={{ fontSize: 14, color: 'var(--text-sub)' }}>Manage intelligent locations, coordinates, and distance metrics.</div>
-        </div>
-        <button className="btn btn-primary" onClick={() => setAddModal(true)}>+ Add New Location</button>
-      </div>
+  const activeTheme = useMemo(() => {
+    if (themeMode === 'system') {
+      return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    return themeMode === 'dark' ? 'dark' : 'light';
+  }, [themeMode]);
 
-      {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Loading locations...</div> : (
-        <div className="admin-loc-grid">
-          {locations.map(loc => (
-            <div key={loc.id} className="admin-loc-card animate-fadeInUp">
-              <div className="admin-loc-card-header">
-                <div className="admin-loc-card-title">{loc.name}</div>
-              <div className={`admin-loc-card-status ${loc.active !== false ? 'status-active' : 'status-inactive'}`}>
-                  {loc.active !== false ? 'Active' : 'Inactive'}
-                </div>
-              </div>
-              <div className="admin-loc-card-body">
-                {loc.nearby_landmark && <p>📍 {loc.nearby_landmark}</p>}
-                <p>📏 {loc.distance_km} km to Campus</p>
-                <p>🚶 {loc.estimated_walking_mins} mins | 🚗 {loc.estimated_driving_mins} mins</p>
-                <p>💰 GHS {loc.avg_transport_fare_ghs} transport fare</p>
-                <p>🏠 {loc.hostel_count} registered hostels</p>
-              </div>
-              <div className="admin-loc-card-actions">
-                <button className="btn btn-outline btn-sm" onClick={() => toggleStatus(loc)}>
-                  {loc.active !== false ? 'Deactivate' : 'Activate'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', activeTheme);
+    if (activeTheme === 'dark') {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+  }, [activeTheme]);
 
-      {addModal && <AddLocationModal onClose={() => setAddModal(false)} onAdded={() => { setAddModal(false); fetchLocations(); }} toast={toast} />}
-    </div>
-  );
+  const toggleTheme = useCallback(() => {
+    setThemeMode(activeTheme === 'dark' ? 'light' : 'dark');
+  }, [activeTheme, setThemeMode]);
+
+  return { themeMode, setThemeMode, activeTheme, toggleTheme };
 }
 
 // ================================================================
 // PREMIUM PUBLIC LANDING PAGE & ROLE SELECTION AUTH
 // ================================================================
 function AuthPage({ onLogin }) {
-  const [view, setView] = useState('landing'); // landing | role-select | student-login | student-signup | manager-login | manager-apply | admin-login | forgot | check-email
+  const { activeTheme, toggleTheme } = useTheme();
+  // On admin.html (data-page="admin"), go straight to admin login — skip public landing
+  const isAdminPage = document.body.dataset.page === 'admin';
+  const [view, setView] = useState(isAdminPage ? 'admin-login' : 'landing'); // landing | role-select | student-login | student-signup | manager-login | manager-apply | admin-login | forgot | check-email
   const [selectedHostel, setSelectedHostel] = useState(null);
+  const [demoPreset, setDemoPreset] = useState(null);
+
+  const handleSelectDemo = (e, p, r) => {
+    setDemoPreset({ email: e, password: p, role: r });
+  };
 
   if (view === 'landing') {
     return (
       <>
-        <PublicLandingPage setView={setView} onSelectHostel={h => setSelectedHostel(h)} />
+        <PublicLandingPage setView={setView} onSelectHostel={h => setSelectedHostel(h)} activeTheme={activeTheme} toggleTheme={toggleTheme} />
         {selectedHostel && (
           <StudentHostelDetail hostel={selectedHostel} user={null} toast={() => {}} onClose={() => setSelectedHostel(null)} onBooked={() => setView('role-select')} />
         )}
@@ -518,16 +496,16 @@ function AuthPage({ onLogin }) {
   if (view === 'role-select' || ((view === 'student-login' || view === 'student-signup' || view === 'login' || view === 'signup') && selectedHostel)) {
     return (
       <>
-        <PublicLandingPage setView={setView} onSelectHostel={h => setSelectedHostel(h)} />
+        <PublicLandingPage setView={setView} onSelectHostel={h => setSelectedHostel(h)} activeTheme={activeTheme} toggleTheme={toggleTheme} />
         {selectedHostel && (
           <StudentHostelDetail hostel={selectedHostel} user={null} toast={() => {}} onClose={() => setSelectedHostel(null)} onBooked={() => setView('role-select')} />
         )}
         {view === 'role-select' ? (
-          <RoleSelectAuthModal setView={setView} onClose={() => setView(selectedHostel ? 'landing' : 'landing')} />
+          <RoleSelectAuthModal setView={setView} onSelectDemo={handleSelectDemo} onClose={() => setView(selectedHostel ? 'landing' : 'landing')} activeTheme={activeTheme} toggleTheme={toggleTheme} />
         ) : (
           <Modal open={true} onClose={() => setView('landing')} title="" size="sm" className="premium-modal">
             <div className="auth-card premium-glass" style={{ padding: 0, boxShadow: 'none', border: 'none', background: 'transparent' }}>
-              {(view === 'student-login' || view === 'login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Student" />}
+              {(view === 'student-login' || view === 'login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Student" demoPreset={demoPreset} />}
               {(view === 'student-signup' || view === 'signup') && <SignupForm onLogin={onLogin} setView={setView} />}
             </div>
           </Modal>
@@ -537,19 +515,15 @@ function AuthPage({ onLogin }) {
   }
 
   return (
-    <div className="auth-page glass-theme">
-      <AuthLeft view={view} setView={setView} />
-      <div className="auth-right">
-        <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'flex-start' }}>
-          <button className="btn btn-outline btn-sm" onClick={() => setView('landing')} style={{ color: 'var(--text-sub)' }}>
-            <span style={{ marginRight: 8 }}>←</span> Back to Homepage
-          </button>
-        </div>
-        <div className="auth-card premium-glass animate-fadeInUp">
-          {(view === 'student-login' || view === 'login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Student" />}
+    <div className="auth-page-dark">
+      <div className="auth-card-wrapper">
+        <AuthIllustration view={view} />
+        <div className="auth-right-form-panel">
+          {(view === 'student-login' || view === 'login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Student" demoPreset={demoPreset} />}
           {(view === 'student-signup' || view === 'signup') && <SignupForm onLogin={onLogin} setView={setView} />}
-          {(view === 'manager-login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Hostel Manager" />}
-          {(view === 'admin-login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Administrator" />}
+          {(view === 'manager-login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Hostel Manager" demoPreset={demoPreset} />}
+          {(view === 'admin-login') && <LoginForm onLogin={onLogin} setView={setView} roleLabel="Administrator" demoPreset={demoPreset} />}
+          {(view === 'manager-apply') && <ManagerApplyForm setView={setView} />}
           {view === 'forgot' && <ForgotPassword setView={setView} />}
           {view === 'check-email' && <CheckEmailScreen setView={setView} />}
         </div>
@@ -558,47 +532,206 @@ function AuthPage({ onLogin }) {
   );
 }
 
-function RoleSelectAuthModal({ setView, onClose }) {
+function RoleSelectAuthModal({ setView, onSelectDemo, onClose, activeTheme, toggleTheme }) {
   return (
-    <Modal open={true} onClose={onClose} title="✨ Welcome to HostelHub" size="md" className="premium-modal">
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 15, color: 'var(--text-sub)' }}>Select how you would like to access the platform</div>
-      </div>
-      <div className="role-select-grid">
-        <div className="role-select-card premium-card" onClick={() => setView('student-login')}>
-          <div className="role-select-icon">🎓</div>
-          <div className="role-select-title">Student Portal</div>
-          <div className="role-select-sub">Discover hostels, book rooms, schedule physical tours, & submit receipts.</div>
-          <button className="btn btn-primary btn-sm" style={{ width: '100%', marginTop: 12 }}>Sign In as Student</button>
-          <button className="btn btn-outline btn-sm" style={{ width: '100%', marginTop: 6, fontSize: 13 }} onClick={e => { e.stopPropagation(); setView('student-signup'); }}>New? Create Account</button>
+    <div className="hostelhub-auth-overlay animate-fadeIn">
+      <div className="hostelhub-auth-content-wrap">
+        {/* Top Header Bar */}
+        <div className="hostelhub-auth-top-bar">
+          <div className="hostelhub-auth-brand">
+            <div className="hostelhub-auth-logo-box">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+                <rect x="10" y="7" width="4" height="3" rx="0.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <span className="hostelhub-auth-brand-name">
+              Hostel<span>Hub</span>
+            </span>
+          </div>
+
+          <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            {toggleTheme && (
+              <button
+                type="button"
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={`Switch to ${activeTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              >
+                <span>{activeTheme === 'dark' ? '☀️' : '🌙'}</span>
+                <span>{activeTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              </button>
+            )}
+            <button className="hostelhub-auth-close-btn" style={{ position: 'static', transform: 'none' }} onClick={onClose} title="Close Modal">
+              ✕
+            </button>
+          </div>
         </div>
 
-        <div className="role-select-card premium-card" onClick={() => setView('manager-login')}>
-          <div className="role-select-icon">🏢</div>
-          <div className="role-select-title">Hostel Manager</div>
-          <div className="role-select-sub">Manage rooms, verify resident payments, & issue official digital receipts.</div>
-          <button className="btn btn-primary btn-sm" style={{ width: '100%', background: 'var(--brand-navy)', marginTop: 12 }}>Manager Sign In</button>
+        {/* Title Block */}
+        <div className="hostelhub-auth-title-block">
+          <h1 className="hostelhub-auth-main-title">
+            Welcome to <span className="hostelhub-auth-gradient-text">HostelHub</span>
+          </h1>
+          <div className="hostelhub-auth-accent-line"></div>
+          <p className="hostelhub-auth-sub-title">Select how you would like to access the platform</p>
         </div>
 
-        <div className="role-select-card premium-card" onClick={() => setView('admin-login')}>
-          <div className="role-select-icon">🔑</div>
-          <div className="role-select-title">Administrator</div>
-          <div className="role-select-sub">Platform control, co-admin roles, verifications, error monitor & analytics.</div>
-          <button className="btn btn-primary btn-sm" style={{ width: '100%', background: 'var(--gray-800)', marginTop: 12 }}>Admin Portal</button>
+        <div style={{ width: '100%', maxWidth: 780, marginBottom: 24 }}>
+          <DemoCredentialsBanner onSelectDemo={(e, p, r) => {
+            if (onSelectDemo) onSelectDemo(e, p, r);
+            if (r === 'Student') setView('student-login');
+            else if (r === 'Hostel Manager') setView('manager-login');
+            else setView('admin-login');
+          }} />
+        </div>
+
+        {/* 2 Portal Cards (Student & Hostel Manager) */}
+        <div className="hostelhub-cards-grid">
+          {/* Card 1: Student Portal */}
+          <div className="hostelhub-portal-card card-student" onClick={() => setView('student-login')}>
+            <div className="portal-icon-wrapper icon-student">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3L1 9L12 15L23 9L12 3Z" fill="url(#gradCapGrad)" stroke="#c084fc" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M5 13.18V17.5C5 18.88 8.13 20 12 20C15.87 20 19 18.88 19 17.5V13.18" stroke="#a855f7" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M23 9V17" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="23" cy="17" r="1.5" fill="#f59e0b"/>
+                <defs>
+                  <linearGradient id="gradCapGrad" x1="1" y1="3" x2="23" y2="15" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#9333ea"/>
+                    <stop offset="1" stopColor="#581c87"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            <h3 className="portal-card-title">Student Portal</h3>
+            <p className="portal-card-desc">
+              Find hostels, compare rooms, schedule physical tours, & book online.
+            </p>
+
+            <div className="portal-card-actions">
+              <button className="portal-btn btn-student-primary" onClick={(e) => { e.stopPropagation(); setView('student-login'); }}>
+                <span>Student Sign In</span>
+                <span className="btn-arrow">→</span>
+              </button>
+
+              <button className="portal-btn btn-student-secondary" onClick={(e) => { e.stopPropagation(); setView('student-signup'); }}>
+                <span style={{ fontSize: 15 }}>👤⁺</span>
+                <span>New? Create Account</span>
+              </button>
+            </div>
+
+            {/* Student Illustration */}
+            <div className="portal-card-illustration">
+              <svg width="190" height="95" viewBox="0 0 200 100" fill="none">
+                {/* Cozy room background with glowing window & sparkles */}
+                <rect x="10" y="20" width="45" height="55" rx="4" fill="#1e1b4b" opacity="0.6"/>
+                <path d="M10 47H55" stroke="#4c1d95" strokeWidth="1.5"/>
+                <path d="M32 20V75" stroke="#4c1d95" strokeWidth="1.5"/>
+                {/* Beanbag */}
+                <ellipse cx="100" cy="78" rx="42" ry="18" fill="#581c87"/>
+                <ellipse cx="100" cy="74" rx="35" ry="14" fill="#6b21a8"/>
+                {/* Student sitting */}
+                <circle cx="98" cy="46" r="11" fill="#f43f5e"/>
+                <path d="M88 64C88 56 108 56 108 64V76H88V64Z" fill="#3b0764"/>
+                {/* Book reading glowing */}
+                <polygon points="86,60 98,65 110,60 98,56" fill="#fde047"/>
+                <circle cx="98" cy="61" r="16" fill="#fef08a" opacity="0.2"/>
+                {/* Backpack */}
+                <rect x="42" y="60" width="22" height="28" rx="6" fill="#7c3aed"/>
+                <rect x="47" y="65" width="12" height="14" rx="3" fill="#a855f7"/>
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 2: Hostel Manager */}
+          <div className="hostelhub-portal-card card-manager" onClick={() => setView('manager-login')}>
+            <div className="portal-icon-wrapper icon-manager">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+                <path d="M3 21H21" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M5 21V7L12 3L19 7V21" fill="url(#buildingGrad)" stroke="#3b82f6" strokeWidth="1.5"/>
+                <rect x="8" y="9" width="3" height="3" rx="0.5" fill="#93c5fd"/>
+                <rect x="13" y="9" width="3" height="3" rx="0.5" fill="#93c5fd"/>
+                <rect x="8" y="14" width="3" height="3" rx="0.5" fill="#93c5fd"/>
+                <rect x="13" y="14" width="3" height="3" rx="0.5" fill="#93c5fd"/>
+                <rect x="10" y="18" width="4" height="3" fill="#60a5fa"/>
+                <defs>
+                  <linearGradient id="buildingGrad" x1="5" y1="3" x2="19" y2="21" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#2563eb"/>
+                    <stop offset="1" stopColor="#1e3a8a"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            <h3 className="portal-card-title">Hostel Manager</h3>
+            <p className="portal-card-desc">
+              Manage your hostel, residents, payments, & operations.
+            </p>
+
+            <div className="portal-card-actions">
+              <button className="portal-btn btn-manager-primary" onClick={(e) => { e.stopPropagation(); setView('manager-login'); }}>
+                <span>Manager Sign In</span>
+                <span className="btn-arrow">→</span>
+              </button>
+            </div>
+
+            {/* Hostel Building Night Illustration */}
+            <div className="portal-card-illustration">
+              <svg width="190" height="95" viewBox="0 0 200 100" fill="none">
+                {/* Night sky trees */}
+                <circle cx="25" cy="70" r="15" fill="#1e3a8a" opacity="0.6"/>
+                <circle cx="175" cy="70" r="15" fill="#1e3a8a" opacity="0.6"/>
+                {/* Hostel Building */}
+                <rect x="45" y="30" width="110" height="65" rx="6" fill="#1e293b" stroke="#3b82f6" strokeWidth="1.5"/>
+                {/* Roof */}
+                <path d="M40 32L100 10L160 32Z" fill="#1e3a8a"/>
+                {/* Lit Windows */}
+                <rect x="58" y="42" width="14" height="14" rx="2" fill="#fbbf24" opacity="0.9"/>
+                <rect x="82" y="42" width="14" height="14" rx="2" fill="#60a5fa" opacity="0.9"/>
+                <rect x="106" y="42" width="14" height="14" rx="2" fill="#fbbf24" opacity="0.9"/>
+                <rect x="130" y="42" width="14" height="14" rx="2" fill="#60a5fa" opacity="0.9"/>
+                <rect x="58" y="64" width="14" height="14" rx="2" fill="#60a5fa" opacity="0.9"/>
+                <rect x="130" y="64" width="14" height="14" rx="2" fill="#fbbf24" opacity="0.9"/>
+                {/* Entrance Door */}
+                <rect x="92" y="64" width="16" height="31" rx="2" fill="#3b82f6"/>
+                <circle cx="100" cy="78" r="8" fill="#fef08a" opacity="0.6"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Info */}
+        <div className="hostelhub-auth-footer">
+          <div className="hostelhub-auth-badges">
+            <span className="badge-check">✓</span>
+            <span>Secure</span>
+            <span className="dot">•</span>
+            <span>Reliable</span>
+            <span className="dot">•</span>
+            <span>Trusted</span>
+          </div>
+          <p className="hostelhub-auth-subfooter">Powering seamless hostel management</p>
+          <div className="hostelhub-auth-copyright">
+            © 2025 HostelHub. All rights reserved.
+          </div>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
-function PublicLandingPage({ setView, onSelectHostel, children }) {
+function PublicLandingPage({ setView, onSelectHostel, activeTheme, toggleTheme, children }) {
   const [hostels, setHostels] = useState([]);
   const [locations, setLocations] = useState([]);
   const [searchLoc, setSearchLoc] = useState('');
-  const [searchRoom, setSearchRoom] = useState('');
-  const [searchPrice, setSearchPrice] = useState('99999');
   const [searchGender, setSearchGender] = useState('');
+  const [searchPrice, setSearchPrice] = useState('99999');
   const [howStep, setHowStep] = useState('student');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedForAuth, setSelectedForAuth] = useState(null);
 
   useEffect(() => {
     apiFetch('/api/hostels?verified=true')
@@ -610,279 +743,480 @@ function PublicLandingPage({ setView, onSelectHostel, children }) {
       .catch(() => {});
   }, []);
 
-  const topLocations = [
-    { name: 'Banso', count: '12 Hostels', icon: '📍', desc: 'Near UMaT Main Gate & Lecture Halls' },
-    { name: 'Bankyim', count: '18 Hostels', icon: '🏘️', desc: 'High density student residential area' },
-    { name: 'Cyanide', count: '9 Hostels', icon: '🏫', desc: 'Short walk to main engineering blocks' },
-    { name: 'New Atuabo', count: '7 Hostels', icon: '🌲', desc: 'Quiet, premium residential lodges' },
-    { name: 'Akoon', count: '11 Hostels', icon: '⛏️', desc: 'Close to UMaT Mines campus' },
-    { name: 'Tarkwa Station', count: '15 Hostels', icon: '🚌', desc: 'Commercial central hub with direct transport' }
+  const demoFeaturedHostels = [
+    {
+      id: 'banso-royal',
+      name: 'Banso Royal Student Lodge',
+      location: 'Banso (Main Gate), Tarkwa',
+      address: 'Plot 12, UMaT Main Road, Banso, Tarkwa',
+      rating: 4.8,
+      reviewsCount: 38,
+      distanceKm: 0.5,
+      price_per_year: 4500,
+      verificationStatus: 'verified',
+      photos: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80'],
+      facilities: ['Wi-Fi', 'Generator', 'Water', 'Security', 'Study Room']
+    },
+    {
+      id: 'ayensu-plaza',
+      name: 'Ayensu Plaza Hostel',
+      location: 'Ayensu / East Gate, Tarkwa',
+      address: 'Opposite UMaT East Gate, Ayensu, Tarkwa',
+      rating: 4.7,
+      reviewsCount: 29,
+      distanceKm: 0.8,
+      price_per_year: 5200,
+      verificationStatus: 'verified',
+      photos: ['https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=900&q=80'],
+      facilities: ['Wi-Fi', 'Water', 'Security', 'Common Room', 'AC']
+    },
+    {
+      id: 'gaza-hall',
+      name: 'Gaza Student Hall (Mines Section)',
+      location: 'Akoon (Mines), Tarkwa',
+      address: 'Mines Road, Akoon, Tarkwa',
+      rating: 4.6,
+      reviewsCount: 42,
+      distanceKm: 1.5,
+      price_per_year: 3800,
+      verificationStatus: 'verified',
+      photos: ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80'],
+      facilities: ['Borehole Water', 'Security', 'Kitchen', 'Study Room']
+    },
+    {
+      id: 'kingdom-hostel',
+      name: 'Kingdom Hostel Tarkwa',
+      location: 'Brahabebome, Tarkwa',
+      address: 'Near Brahabebome Junction, Tarkwa',
+      rating: 4.5,
+      reviewsCount: 19,
+      distanceKm: 2.0,
+      price_per_year: 4200,
+      verificationStatus: 'verified',
+      photos: ['https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80'],
+      facilities: ['Wi-Fi', 'CCTV', 'Water', 'Generator', 'Parking']
+    },
+    {
+      id: 'evandy-lodge',
+      name: 'Evandy Student Lodge',
+      location: 'Yenkea, Tarkwa',
+      address: 'Yenkea Hill Top, Tarkwa',
+      rating: 4.9,
+      reviewsCount: 54,
+      distanceKm: 1.2,
+      price_per_year: 4800,
+      verificationStatus: 'verified',
+      photos: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80'],
+      facilities: ['Wi-Fi', 'AC', 'Generator', 'Laundry', 'Security']
+    },
+    {
+      id: 'pentagon-villa',
+      name: 'Pentagon Villa Hostel',
+      location: 'Adidome Junction, Tarkwa',
+      address: 'Adidome Road, Tarkwa',
+      rating: 4.4,
+      reviewsCount: 31,
+      distanceKm: 1.8,
+      price_per_year: 3500,
+      verificationStatus: 'verified',
+      photos: ['https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=900&q=80'],
+      facilities: ['Water', 'Security', 'Common Room', 'Kitchen']
+    }
   ];
+
+  const featuredList = hostels.length >= 5 ? hostels : demoFeaturedHostels;
+  const [wishlist, setWishlist] = useState([]);
+
+  const toggleWishlist = (hostelId, name, e) => {
+    if (e) e.stopPropagation();
+    setWishlist(prev => prev.includes(hostelId) ? prev.filter(id => id !== hostelId) : [...prev, hostelId]);
+  };
+
+  const handleCardClick = (h) => {
+    setSelectedForAuth(h);
+    setShowAuthModal(true);
+  };
 
   const handleSearch = () => {
     const el = document.getElementById('featured-hostels');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const filteredHostels = hostels.filter(h => {
-    if (searchLoc && !(h.location || '').toLowerCase().includes(searchLoc.toLowerCase())) return false;
-    if (searchGender && h.genderPreference && h.genderPreference !== 'Co-ed' && h.genderPreference !== searchGender) return false;
-    if (Number(searchPrice) < 99999 && Number(h.pricePerYear || h.price_per_year) > Number(searchPrice)) return false;
-    return true;
-  });
+  const scrollToSection = (id) => (e) => {
+    if (e) e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className="pub-landing-page">
-      <nav className="pub-landing-nav">
+      {/* Top Navbar Header matching hostelhub_homepage_reference.png */}
+      <nav className="pub-replica-nav">
         <div className="pub-landing-nav-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div className="pub-landing-nav-logo-icon">🏠</div>
-          <div>
-            <div className="pub-landing-nav-title">HostelHub</div>
+          <div className="pub-replica-logo-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
           </div>
-          <span className="pub-landing-nav-badge">UMaT Tarkwa</span>
+          <span className="pub-replica-logo-text">HostelHub</span>
+          <span className="pub-replica-umat-badge">UMaT Tarkwa</span>
         </div>
 
-        <div className="pub-landing-nav-links">
-          <a className="pub-landing-nav-link" href="#featured-hostels">Explore Hostels</a>
-          <a className="pub-landing-nav-link" href="#locations">Locations</a>
-          <a className="pub-landing-nav-link" href="#why-us">Why Us</a>
-          <a className="pub-landing-nav-link" href="#how-it-works">How It Works</a>
-          <a className="pub-landing-nav-link" href="#testimonials">Reviews</a>
-          <a className="pub-landing-nav-link" href="#for-managers">For Managers</a>
+        <div className="pub-replica-nav-links">
+          <a className="pub-replica-nav-link" href="#featured-hostels" onClick={scrollToSection('featured-hostels')}>Explore Hostels</a>
+          <a className="pub-replica-nav-link" href="#locations" onClick={scrollToSection('locations')}>Locations</a>
+          <a className="pub-replica-nav-link" href="#why-us" onClick={scrollToSection('why-us')}>Why Us</a>
+          <a className="pub-replica-nav-link" href="#how-it-works" onClick={scrollToSection('how-it-works')}>How It Works</a>
+          <a className="pub-replica-nav-link" href="#testimonials" onClick={scrollToSection('testimonials')}>Reviews</a>
+          <a className="pub-replica-nav-link" href="#for-managers" onClick={scrollToSection('for-managers')}>For Managers</a>
         </div>
 
-        <div className="pub-landing-nav-actions">
-          <button className="btn btn-outline btn-sm" onClick={() => setView('role-select')}>Sign In</button>
-          <button className="btn btn-primary btn-sm" onClick={() => setView('role-select')}>Get Started ➔</button>
+        <div className="pub-replica-nav-actions">
+          {toggleTheme && (
+            <button
+              type="button"
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              title={`Switch to ${activeTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            >
+              <span>{activeTheme === 'dark' ? '☀️' : '🌙'}</span>
+              <span>{activeTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+          )}
+          <button className="pub-replica-btn-signin" onClick={() => setView('role-select')}>Sign In</button>
+          <button className="pub-replica-btn-getstarted" onClick={() => setView('role-select')}>Get Started</button>
         </div>
       </nav>
 
-      <header className="pub-hero-section">
-        <div className="pub-hero-bg-glow" />
-        <div className="pub-hero-content animate-fadeInUp">
-          <div className="pub-hero-badge">
-            <span>🛡️ #1 Verified Student Accommodation Platform</span>
+      {/* Hero Section — GHHostels-Inspired Photography Banner */}
+      <section className="pub-ref-hero-section">
+        <div className="pub-ref-hero-bg-img" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=1920&q=80')" }}></div>
+        <div className="pub-ref-hero-overlay"></div>
+
+        <div className="pub-ref-hero-content">
+          <div className="pub-ref-hero-badge">
+            <span>🏛️ UMAT TARKWA STUDENT ACCOMMODATION MARKETPLACE</span>
           </div>
 
-          <h1 className="pub-hero-title">
-            Find Your Ideal Student Home <br />
-            At <span className="pub-hero-title-accent">UMaT Tarkwa</span>
+          <h1 className="pub-ref-hero-title">
+            Find a hostel you'll feel at home in near <span className="pub-ref-violet-accent">UMaT, Tarkwa</span>
           </h1>
 
-          <p className="pub-hero-subtitle">
-            Discover 100% physically verified student hostels, schedule physical tours, book rooms securely, and eliminate middleman agent scams — all in one platform.
+          <p className="pub-ref-hero-sub">
+            Discover physically inspected and UMaT-verified student accommodation around Tarkwa. Compare room prices, view photo galleries, schedule physical tours, and receive official Mobile Money digital receipts — with zero middleman agent fees.
           </p>
 
-          <div className="pub-hero-search-box">
-            <div className="pub-search-field">
-              <div className="pub-search-label">📍 Location in Tarkwa</div>
-              <IntelligentLocationSearch 
+          {/* Standalone Marketplace Search Panel */}
+          <div className="pub-ref-search-glass-card">
+            <div className="pub-ref-search-field">
+              <span className="pub-ref-search-icon">📍</span>
+              <select 
                 value={searchLoc} 
-                onChange={v => setSearchLoc(v)} 
-                placeholder="All Locations in Tarkwa" 
-                className="pub-hero-loc-search"
-              />
-            </div>
-
-            <div className="pub-search-field">
-              <div className="pub-search-label">🛏️ Room Category</div>
-              <select className="pub-search-input" value={searchRoom} onChange={e => setSearchRoom(e.target.value)}>
-                <option value="">Any Room Category</option>
-                <option value="1_in_room">One in a Room</option>
-                <option value="2_in_room">Two in a Room</option>
-                <option value="3_in_room">Three in a Room</option>
-                <option value="4_in_room">Four in a Room</option>
+                onChange={e => setSearchLoc(e.target.value)}
+                style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 14, fontWeight: 600, color: '#0f172a' }}
+              >
+                <option value="">All Locations in Tarkwa</option>
+                {locations.map(loc => (
+                  <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                ))}
               </select>
             </div>
 
-            <div className="pub-search-field">
-              <div className="pub-search-label">💰 Max Budget / Year</div>
-              <select className="pub-search-input" value={searchPrice} onChange={e => setSearchPrice(e.target.value)}>
-                <option value="99999">Any Budget</option>
-                <option value="5000">Under GHS 5,000</option>
-                <option value="8000">Under GHS 8,000</option>
-                <option value="12000">Under GHS 12,000</option>
-              </select>
-            </div>
-
-            <div className="pub-search-field">
-              <div className="pub-search-label">👥 Gender Preference</div>
-              <select className="pub-search-input" value={searchGender} onChange={e => setSearchGender(e.target.value)}>
-                <option value="">Co-ed / All</option>
+            <div className="pub-ref-search-field">
+              <span className="pub-ref-search-icon">👥</span>
+              <select value={searchGender} onChange={e => setSearchGender(e.target.value)}>
+                <option value="">All Gender Types</option>
+                <option value="Co-ed">Co-ed Hostels</option>
                 <option value="Male-only">Male Only</option>
                 <option value="Female-only">Female Only</option>
               </select>
             </div>
 
-            <button className="pub-search-btn" onClick={handleSearch}>
-              <span>🔍 Search</span>
+            <button className="pub-ref-search-btn" onClick={handleSearch}>
+              🔍 Search Hostels
             </button>
           </div>
 
-          <div className="pub-proof-strip">
-            <div className="pub-proof-item"><span className="pub-proof-icon">🎓</span> 2,500+ UMaT Students Housed</div>
-            <div className="pub-proof-item"><span className="pub-proof-icon">🛡️</span> 100% Admin Verified Hostels</div>
-            <div className="pub-proof-item"><span className="pub-proof-icon">🚫</span> Zero Agent Fees & Scams</div>
-            <div className="pub-proof-item"><span className="pub-proof-icon">⭐</span> 4.9★ Average Rating</div>
-          </div>
-        </div>
-      </header>
-
-      <section className="pub-section" id="featured-hostels">
-        <div className="pub-section-header">
-          <span className="pub-section-tag">Featured Accommodations</span>
-          <h2 className="pub-section-title">Explore Verified Hostels Near UMaT</h2>
-          <p className="pub-section-subtitle">Every hostel listed on HostelHub is physically inspected and verified by administrators before publication.</p>
-        </div>
-
-        <div className="pub-hostel-grid">
-          {(filteredHostels.length > 0 ? filteredHostels : hostels).slice(0, 6).map(h => (
-            <div key={h.id} className="pub-hostel-card">
-              <div className="pub-hostel-img-wrap">
-                <img className="pub-hostel-img" src={h.photos?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80'} alt={h.name} loading="lazy" />
-                <div className="pub-hostel-badge-top">
-                  <span className={`badge ${h.verificationStatus === 'premium_partner' ? 'badge-verified' : 'badge-info'}`}>
-                    {h.verificationStatus === 'premium_partner' ? '💎 Premium Partner' : '🛡️ Admin Verified'}
-                  </span>
-                </div>
-                <div className="pub-hostel-distance-badge">📍 {h.distanceKm || 1.2} km from UMaT</div>
-                <div className="pub-hostel-price-tag">{fmtCurrency(h.pricePerYear || h.price_per_year)}/yr</div>
-              </div>
-
-              <div className="pub-hostel-body">
-                <div className="pub-hostel-name">{h.name}</div>
-                <div className="pub-hostel-loc">📍 {h.location} • {h.address}</div>
-                <div className="pub-hostel-facs">
-                  {(h.facilities || ['Wi-Fi', 'Water', 'Security', 'Generator']).slice(0, 4).map(f => (
-                    <span key={f} className="pub-hostel-fac-pill">{f}</span>
-                  ))}
-                </div>
-                <div style={{ marginTop: 'auto', display: 'flex', gap: 10 }}>
-                  <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => onSelectHostel(h)}>View Photos & Details</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => setView('role-select')}>Book Now</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="pub-section" id="locations" style={{ background: 'var(--bg-white)', borderRadius: 'var(--radius-xl)' }}>
-        <div className="pub-section-header">
-          <span className="pub-section-tag">Campus Neighborhoods</span>
-          <h2 className="pub-section-title">Popular Hostel Locations in Tarkwa</h2>
-          <p className="pub-section-subtitle">Choose from top student residential areas with easy transport access to lecture rooms.</p>
-        </div>
-
-        <div className="pub-location-grid">
-          {locations.slice(0, 6).map(loc => (
-            <div key={loc.name} className="pub-location-card" onClick={() => { setSearchLoc(loc.name); handleSearch(); }}>
-              <div className="pub-location-icon">{loc.distance_km <= 1 ? '🏫' : loc.distance_km <= 3 ? '📍' : '🚌'}</div>
+          {/* 4 Trust Feature Cards */}
+          <div className="pub-ref-props-grid">
+            <div className="pub-ref-prop-item">
+              <div className="pub-ref-prop-icon">🛡️</div>
               <div>
-                <div className="pub-location-name">{loc.name}</div>
-                <div className="pub-location-sub">{loc.hostel_count} Hostels • {loc.distance_km} km to campus</div>
+                <div className="pub-ref-prop-title">Physically Inspected</div>
+                <div className="pub-ref-prop-sub">Verified campus officers</div>
+              </div>
+            </div>
+
+            <div className="pub-ref-prop-item">
+              <div className="pub-ref-prop-icon">📍</div>
+              <div>
+                <div className="pub-ref-prop-title">Near UMaT Campus</div>
+                <div className="pub-ref-prop-sub">Minutes to lecture halls</div>
+              </div>
+            </div>
+
+            <div className="pub-ref-prop-item">
+              <div className="pub-ref-prop-icon">👛</div>
+              <div>
+                <div className="pub-ref-prop-title">Direct Manager Pricing</div>
+                <div className="pub-ref-prop-sub">Zero agent fees</div>
+              </div>
+            </div>
+
+            <div className="pub-ref-prop-item">
+              <div className="pub-ref-prop-icon">⚡</div>
+              <div>
+                <div className="pub-ref-prop-title">Instant Digital Receipts</div>
+                <div className="pub-ref-prop-sub">Verified MoMo payments</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Floating Stats Strip */}
+      <div className="pub-ref-stats-strip-container">
+        <div className="pub-ref-stats-strip">
+          <div className="pub-ref-stat-item">
+            <div className="pub-ref-stat-icon">🏢</div>
+            <div>
+              <div className="pub-ref-stat-num">{hostels.length > 0 ? hostels.length : '120+'}</div>
+              <div className="pub-ref-stat-lbl">Listed Hostels</div>
+            </div>
+          </div>
+
+          <div className="pub-ref-stat-item">
+            <div className="pub-ref-stat-icon">📍</div>
+            <div>
+              <div className="pub-ref-stat-num">{locations.length > 0 ? locations.length : '15+'}</div>
+              <div className="pub-ref-stat-lbl">Tarkwa Locations</div>
+            </div>
+          </div>
+
+          <div className="pub-ref-stat-item">
+            <div className="pub-ref-stat-icon">👥</div>
+            <div>
+              <div className="pub-ref-stat-num">5,000+</div>
+              <div className="pub-ref-stat-lbl">UMaT Students Served</div>
+            </div>
+          </div>
+
+          <div className="pub-ref-stat-item">
+            <div className="pub-ref-stat-icon">🛡️</div>
+            <div>
+              <div className="pub-ref-stat-num">100%</div>
+              <div className="pub-ref-stat-lbl">Verified Listings</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Featured Hostels Near UMaT Section */}
+      <section className="pub-section" id="featured-hostels">
+        <div className="pub-ref-section-header">
+          <div>
+            <h2 className="pub-ref-section-title">Verified Hostels Near UMaT</h2>
+            <div className="pub-ref-section-sub">Physically inspected accommodations close to UMaT lecture halls.</div>
+          </div>
+          <a className="pub-ref-view-all" href="#locations">View all hostels &rarr;</a>
+        </div>
+
+        <div className="pub-ref-hostel-grid">
+          {featuredList.slice(0, 6).map(h => (
+            <div key={h.id} className="pub-ref-hostel-card">
+              <div className="pub-ref-card-img-wrap">
+                <img 
+                  className="pub-ref-card-img" 
+                  src={h.photos?.[0] || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80'} 
+                  alt={h.name} 
+                  loading="lazy" 
+                />
+                <div className="pub-ref-badge-top-left">
+                  {['verified', 'featured'].includes(h.verificationStatus || h.verification_status) ? (
+                    <span className="pub-ref-badge-verified">🛡️ UMaT Verified</span>
+                  ) : (
+                    <span className="pub-ref-badge-pending">⏳ Verification pending</span>
+                  )}
+                </div>
+                <button 
+                  className="pub-ref-fav-btn" 
+                  onClick={e => toggleWishlist(h.id, h.name, e)}
+                  title={wishlist.includes(h.id) ? "Remove from Wishlist" : "Add to Wishlist"}
+                >
+                  {wishlist.includes(h.id) ? '❤️' : '♡'}
+                </button>
+              </div>
+
+              <div className="pub-ref-card-body">
+                <h3 className="pub-ref-hostel-name">{h.name}</h3>
+                <div className="pub-ref-hostel-loc">📍 {h.location}</div>
+
+                <div className="pub-ref-specs-row" style={{ marginTop: 8, marginBottom: 12 }}>
+                  <div className="pub-ref-spec-item">
+                    <span>🚶 {h.distanceKm || h.distance_km || 0.8} km to UMaT</span>
+                  </div>
+                  <div className="pub-ref-spec-item">
+                    <span>from <strong>{fmtCurrency(h.price_per_year || h.pricePerYear || 3500)}</strong>/yr</span>
+                  </div>
+                </div>
+
+                <button className="pub-ref-details-btn" onClick={() => handleCardClick(h)}>
+                  View Hostel Details
+                </button>
               </div>
             </div>
           ))}
         </div>
+      </section>
 
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16, color: 'var(--brand-navy)' }}>Interactive Campus Map</h3>
-          <CampusLocationMap locations={locations} onSelectLocation={(name) => { setSearchLoc(name); handleSearch(); }} />
+      {/* Explore Hostels by Location Section (Dynamically driven by locations dataset) */}
+      <section className="pub-section" id="locations">
+        <div className="pub-ref-section-header">
+          <div>
+            <h2 className="pub-ref-section-title">Explore Hostels by Location Zone</h2>
+            <div className="pub-ref-section-sub">Discover student residential neighborhoods in Tarkwa near UMaT.</div>
+          </div>
+          <a className="pub-ref-view-all" href="#locations">View all locations &rarr;</a>
+        </div>
+
+        <div className="pub-ref-location-grid">
+          {(locations.length > 0 ? locations : [
+            { name: 'Banso (Main Gate)', hostel_count: 12, distance_km: 0.5 },
+            { name: 'Akoon (Mines)', hostel_count: 6, distance_km: 1.5 },
+            { name: 'Adidome Junction', hostel_count: 9, distance_km: 1.8 },
+            { name: 'Brahabebome', hostel_count: 8, distance_km: 2.0 },
+            { name: 'Yenkea', hostel_count: 11, distance_km: 1.2 },
+          ]).slice(0, 6).map((loc, idx) => {
+            const locPhotos = [
+              'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=700&q=80',
+              'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=700&q=80',
+              'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=700&q=80',
+              'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=700&q=80',
+              'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=700&q=80'
+            ];
+            return (
+              <div key={loc.id || loc.name} className="pub-ref-loc-card" onClick={() => { setSearchLoc(loc.name); handleSearch(); }}>
+                <div className="pub-ref-loc-img-wrap">
+                  <img src={locPhotos[idx % locPhotos.length]} alt={loc.name} className="pub-ref-loc-img" />
+                </div>
+                <div className="pub-ref-loc-info">
+                  <div className="pub-ref-loc-name">📍 {loc.name}</div>
+                  <div className="pub-ref-loc-cnt">{loc.hostel_count || 8} Verified Hostels • {loc.distance_km || loc.distanceKm || 1.2} km to UMaT</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
+      {/* Why Choose HostelHub Section */}
       <section className="pub-section" id="why-us">
-        <div className="pub-section-header">
-          <span className="pub-section-tag">Platform Advantages</span>
-          <h2 className="pub-section-title">Built Specially for UMaT Students</h2>
-          <p className="pub-section-subtitle">We solved the hassle of finding student accommodation in Tarkwa so you can focus on your studies.</p>
+        <div className="pub-ref-section-header" style={{ textAlign: 'center', display: 'block' }}>
+          <h2 className="pub-ref-section-title">Built Specially for UMaT Students</h2>
+          <div className="pub-ref-section-sub">Solving student accommodation challenges with transparency and trust.</div>
         </div>
 
-        <div className="pub-why-grid">
+        <div className="pub-ref-why-grid">
           {[
-            ['🛡️', '100% Physical Verification', 'Administrators physically visit and inspect every hostel before issuing a verified badge.'],
-            ['📅', 'Schedule Guided Physical Tours', 'Request a physical tour on your preferred date and time before making any financial commitment.'],
-            ['📷', 'Categorized Room Galleries', 'View actual room photos categorized for 1-in-a-room, 2-in-a-room, kitchen, and washrooms.'],
+            ['🛡️', '100% Physical Verification', 'Administrators physically inspect every hostel before issuing a verified badge.'],
+            ['📅', 'Schedule Guided Physical Tours', 'Request a physical tour on your preferred date and time slot before paying.'],
+            ['📷', 'Categorized Room Galleries', 'View actual room photos categorized for 1-in-a-room, 2-in-a-room, kitchen & washroom.'],
             ['💳', 'Transparent Payment Receipts', 'Submit payment proof online and get official digital PDF receipts automatically on manager approval.'],
-            ['🔧', 'Maintenance Issue Tracking', 'Submit maintenance requests with Before & After repair photo uploads to ensure issues get fixed fast.'],
-            ['🚫', 'Zero Illegal Agent Scams', 'Connect directly with verified hostel managers without paying illegal middleman inspection fees.']
+            ['🔧', 'Maintenance Issue Tracking', 'Submit maintenance requests with Before & After repair photo uploads to ensure fast fixes.'],
+            ['🚫', 'Zero Illegal Agent Scams', 'Connect directly with verified hostel managers without paying illegal middleman fees.']
           ].map(([icon, title, desc]) => (
-            <div key={title} className="pub-why-card">
-              <div className="pub-why-icon-box">{icon}</div>
-              <div className="pub-why-title">{title}</div>
-              <div className="pub-why-desc">{desc}</div>
+            <div key={title} className="pub-ref-why-card">
+              <div className="pub-ref-why-icon">{icon}</div>
+              <h3 className="pub-ref-why-title">{title}</h3>
+              <p className="pub-ref-why-desc">{desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="pub-section" id="how-it-works" style={{ background: 'var(--bg-white)', borderRadius: 'var(--radius-xl)' }}>
-        <div className="pub-section-header">
-          <span className="pub-section-tag">Simple & Transparent</span>
-          <h2 className="pub-section-title">How HostelHub Works</h2>
-          <p className="pub-section-subtitle">A seamless journey from hostel discovery to official move-in.</p>
+      {/* How HostelHub Works Section */}
+      <section className="pub-section" id="how-it-works">
+        <div className="pub-ref-section-header" style={{ textAlign: 'center', display: 'block' }}>
+          <span className="pub-ref-tag">SIMPLE & TRANSPARENT</span>
+          <h2 className="pub-ref-section-title" style={{ marginTop: 6 }}>How HostelHub Works</h2>
+          <div className="pub-ref-section-sub">A seamless journey from hostel discovery to official move-in.</div>
         </div>
 
-        <div className="pub-step-toggle">
-          <button className={`btn btn-sm ${howStep === 'student' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setHowStep('student')}>🎓 For Students</button>
-          <button className={`btn btn-sm ${howStep === 'manager' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setHowStep('manager')}>🏢 For Hostel Managers</button>
+        <div className="pub-ref-how-grid">
+          {[
+            ['1', '🔍', 'Search & Explore', 'Search hostels by Tarkwa location, room category, budget, and distance from UMaT campus.'],
+            ['2', '🛡️', 'View Verified Details', 'Browse verified photos, room availability, amenities, and distance to lecture halls.'],
+            ['3', '👤', 'Create an Account', 'Sign up as a UMaT student and connect directly with verified hostel managers.'],
+            ['4', '🔑', 'Book & Move In', 'Reserve your room, upload payment proof, and receive your official digital receipt & key.']
+          ].map(([num, icon, title, desc]) => (
+            <div key={num} className="pub-ref-how-card">
+              <div className="pub-ref-how-step-num">{num}</div>
+              <div className="pub-ref-how-icon">{icon}</div>
+              <h3 className="pub-ref-how-title">{title}</h3>
+              <p className="pub-ref-how-desc">{desc}</p>
+            </div>
+          ))}
         </div>
-
-        {howStep === 'student' ? (
-          <div className="pub-step-grid">
-            {[
-              ['1', 'Search & Filter', 'Browse hostels by Tarkwa location, room category, budget, and distance from UMaT campus.'],
-              ['2', 'Request Physical Tour', 'Pick a date and time slot to visit the physical hostel before making any payment.'],
-              ['3', 'Book & Submit Proof', 'Reserve your preferred room category and upload your Mobile Money or bank transaction receipt.'],
-              ['4', 'Move In & Get Receipt', 'Receive your verified digital PDF receipt and official move-in instructions from the manager.']
-            ].map(([num, title, desc]) => (
-              <div key={num} className="pub-step-card">
-                <div className="pub-step-number">{num}</div>
-                <div className="pub-step-title">{title}</div>
-                <div className="pub-step-desc">{desc}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="pub-step-grid">
-            {[
-              ['1', 'Apply for Listing', 'Submit your hostel details, room capacities, facilities, and business registration details.'],
-              ['2', 'Admin Physical Audit', 'HostelHub administrators physically inspect your property to issue the Verified Partner Badge.'],
-              ['3', 'Receive Student Bookings', 'Manage room availability, review payment submissions, and approve guided physical tours.'],
-              ['4', 'Automate Revenue & Receipts', 'Track rent payments, issue official receipts, and manage student maintenance requests effortlessly.']
-            ].map(([num, title, desc]) => (
-              <div key={num} className="pub-step-card">
-                <div className="pub-step-number" style={{ background: 'var(--brand-indigo)' }}>{num}</div>
-                <div className="pub-step-title">{title}</div>
-                <div className="pub-step-desc">{desc}</div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
 
+      {/* Own or Manage a Hostel Banner */}
+      <section className="pub-section" id="for-managers">
+        <div className="pub-ref-manager-banner">
+          <div className="pub-ref-manager-content">
+            <h2 className="pub-ref-manager-title">Own or Manage a Hostel in Tarkwa?</h2>
+            <p className="pub-ref-manager-sub">
+              List your hostel on HostelHub and reach 1,000s of UMaT students looking for accommodation.
+            </p>
+            <button className="pub-ref-manager-btn" onClick={() => setView('manager-login')}>
+              🚀 List Your Hostel
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials / Reviews Section */}
       <section className="pub-section" id="testimonials">
-        <div className="pub-section-header">
-          <span className="pub-section-tag">Student Feedback</span>
-          <h2 className="pub-section-title">Loved by UMaT Students</h2>
-          <p className="pub-section-subtitle">Real experiences from students living in verified Tarkwa hostels.</p>
+        <div className="pub-ref-section-header">
+          <div>
+            <h2 className="pub-ref-section-title">Loved by UMaT Students</h2>
+            <div className="pub-ref-section-sub">Real experiences from students living in verified Tarkwa hostels.</div>
+          </div>
+          <a className="pub-ref-view-all" href="#testimonials">View all reviews &rarr;</a>
         </div>
 
-        <div className="pub-testimonial-grid">
+        <div className="pub-ref-review-grid">
           {[
-            ['AK', 'Ama Kofi', 'Level 300 • Mining Engineering', '"Found my 1-in-a-room hostel at Banso in 10 minutes. The verification badge gave me confidence it was legitimate. Best platform for UMaT students!"'],
-            ['KM', 'Kwame Mensah', 'Level 200 • Computer Science', '"No agents calling me at 6 AM demanding inspection fees. I scheduled a tour, visited Tarkwa Hostel Haven, and paid directly through Mobile Money."'],
-            ['EB', 'Emmanuel Boateng', 'Level 400 • Petroleum Engineering', '"The maintenance photo tracking is incredible. Had a plumbing issue, uploaded a photo on Thursday, and the manager fixed it by Friday morning."']
-          ].map(([avatar, name, role, text]) => (
-            <div key={name} className="pub-testimonial-card">
-              <div className="pub-testimonial-stars">★★★★★</div>
-              <div className="pub-testimonial-text">{text}</div>
-              <div className="pub-testimonial-author">
-                <div className="pub-testimonial-avatar">{avatar}</div>
+            {
+              stars: '⭐⭐⭐⭐⭐',
+              text: '"HostelHub made it so easy to find a safe and affordable place close to campus. Highly recommended!"',
+              name: 'Kwame Mensah',
+              sub: 'Level 300, Mechanical Engineering',
+              avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80'
+            },
+            {
+              stars: '⭐⭐⭐⭐⭐',
+              text: '"I found my hostel within a day. The information is accurate and the hostels are actually verified."',
+              name: 'Ama Serwaa',
+              sub: 'Level 200, Computer Science',
+              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'
+            },
+            {
+              stars: '⭐⭐⭐⭐⭐',
+              text: '"Verified listings give me confidence. Great platform for every UMaT student!"',
+              name: 'Kofi Boateng',
+              sub: 'Level 400, Mining Engineering',
+              avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80'
+            }
+          ].map(r => (
+            <div key={r.name} className="pub-ref-review-card">
+              <div className="pub-ref-review-stars">{r.stars}</div>
+              <p className="pub-ref-review-text">{r.text}</p>
+              <div className="pub-ref-review-user">
+                <img src={r.avatar} alt={r.name} className="pub-ref-review-avatar" />
                 <div>
-                  <div className="pub-testimonial-name">{name}</div>
-                  <div className="pub-testimonial-role">{role}</div>
+                  <div className="pub-ref-review-name">{r.name}</div>
+                  <div className="pub-ref-review-sub">{r.sub}</div>
                 </div>
               </div>
             </div>
@@ -890,122 +1224,224 @@ function PublicLandingPage({ setView, onSelectHostel, children }) {
         </div>
       </section>
 
-      <section className="pub-section" id="for-managers">
-        <div className="pub-manager-banner">
-          <div className="pub-manager-banner-text">
-            <h3 className="pub-manager-banner-title">Own or Manage a Hostel in Tarkwa?</h3>
-            <p className="pub-manager-banner-sub">Partner with HostelHub to reach thousands of UMaT students, fill room vacancies faster, verify payment submissions, and manage residents professionally.</p>
-          </div>
-          <button className="btn btn-amber btn-lg" onClick={() => setView('role-select')}>Apply for Hostel Listing ➔</button>
-        </div>
-      </section>
-
-      <section className="pub-section">
-        <div className="pub-cta-banner">
-          <h2 style={{ fontSize: 32, fontWeight: 900, fontFamily: 'Plus Jakarta Sans', marginBottom: 12 }}>Ready to Secure Your Student Accommodation?</h2>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.85)', maxWidth: 600, margin: '0 auto 28px' }}>Join thousands of UMaT students who enjoy safe, verified, and hassle-free hostel living.</p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-amber btn-lg" onClick={() => setView('role-select')}>Find My Hostel Now ➔</button>
-            <button className="btn btn-outline btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }} onClick={() => setView('role-select')}>Sign In to Account</button>
-          </div>
-        </div>
-      </section>
-
-      <footer className="pub-landing-footer">
-        <div className="pub-footer-grid">
-          <div>
-            <div className="pub-footer-brand">🏠 HostelHub</div>
-            <div className="pub-footer-text">The official verified student accommodation discovery and booking platform for the University of Mines and Technology (UMaT), Tarkwa, Ghana.</div>
-          </div>
-
-          <div>
-            <div className="pub-footer-heading">Quick Links</div>
-            <div className="pub-footer-links">
-              <a className="pub-footer-link" href="#featured-hostels">Explore Hostels</a>
-              <a className="pub-footer-link" href="#locations">Campus Locations</a>
-              <a className="pub-footer-link" href="#why-us">Why HostelHub</a>
-              <a className="pub-footer-link" href="#how-it-works">How It Works</a>
+      {/* Footer matching hostelhub_homepage_reference.png */}
+      <footer className="pub-ref-footer">
+        <div className="pub-ref-footer-inner">
+          <div className="pub-ref-footer-brand">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div className="pub-replica-logo-icon">🏠</div>
+              <span style={{ fontSize: 20, fontWeight: 900, color: '#ffffff' }}>HostelHub</span>
+            </div>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, maxWidth: 280 }}>
+              The official verified student accommodation discovery and booking platform for the University of Mines and Technology (UMaT), Tarkwa, Ghana.
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <span className="pub-ref-social-icon">FB</span>
+              <span className="pub-ref-social-icon">X</span>
+              <span className="pub-ref-social-icon">IG</span>
+              <span className="pub-ref-social-icon">YT</span>
             </div>
           </div>
 
-          <div>
-            <div className="pub-footer-heading">Top Neighborhoods</div>
-            <div className="pub-footer-links">
-              <span className="pub-footer-link" onClick={() => { setSearchLoc('Banso'); handleSearch(); }}>Banso (Main Gate)</span>
-              <span className="pub-footer-link" onClick={() => { setSearchLoc('Bankyim'); handleSearch(); }}>Bankyim</span>
-              <span className="pub-footer-link" onClick={() => { setSearchLoc('Cyanide'); handleSearch(); }}>Cyanide</span>
-              <span className="pub-footer-link" onClick={() => { setSearchLoc('Akoon'); handleSearch(); }}>Akoon (Mines Campus)</span>
-            </div>
+          <div className="pub-ref-footer-col">
+            <div className="pub-ref-footer-head">Quick Links</div>
+            <a href="#featured-hostels">Explore Hostels</a>
+            <a href="#locations">Campus Locations</a>
+            <a href="#why-us">Why Us</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#testimonials">Reviews</a>
           </div>
 
-          <div>
-            <div className="pub-footer-heading">Portal Access</div>
-            <div className="pub-footer-links">
-              <span className="pub-footer-link" onClick={() => setView('role-select')}>Student Sign In</span>
-              <span className="pub-footer-link" onClick={() => setView('role-select')}>Manager Portal</span>
-              <span className="pub-footer-link" onClick={() => setView('role-select')}>Admin Console</span>
-              <span className="pub-footer-link" onClick={() => setView('role-select')}>Manager Application</span>
+          <div className="pub-ref-footer-col">
+            <div className="pub-ref-footer-head">For Students</div>
+            <a onClick={() => setView('student-signup')}>Create Account</a>
+            <a onClick={() => setView('student-login')}>Sign In</a>
+            <a href="#why-us">Safety Tips</a>
+            <a href="#how-it-works">FAQs</a>
+            <a href="#for-managers">Contact Us</a>
+          </div>
+
+          <div className="pub-ref-footer-col">
+            <div className="pub-ref-footer-head">For Managers</div>
+            <a onClick={() => setView('manager-login')}>List Your Hostel</a>
+            <a onClick={() => setView('manager-login')}>Manager Login</a>
+            <a href="#for-managers">Guidelines</a>
+            <a href="#for-managers">Support</a>
+          </div>
+
+          <div className="pub-ref-footer-col">
+            <div className="pub-ref-footer-head">Contact Us</div>
+            <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 6 }}>📞 +233 24 123 4567</div>
+            <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 6 }}>✉️ support@hostelhub.com</div>
+            <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 16 }}>📍 UMaT, Tarkwa, Ghana</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="pub-ref-app-badge">App Store</button>
+              <button className="pub-ref-app-badge">Google Play</button>
             </div>
           </div>
         </div>
 
-        <div className="pub-footer-bottom">
+        <div className="pub-ref-footer-bottom">
           <div>© 2026 HostelHub — University of Mines and Technology (UMaT), Tarkwa. All rights reserved.</div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 999, background: 'var(--success)' }} />
-            <span>Supabase API v5 Active</span>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <span>Privacy Policy</span>
+            <span>Terms of Use</span>
           </div>
         </div>
       </footer>
 
-      {children}
+      {/* Authentication Gate Modal (Instruction #11) */}
+      {showAuthModal && (
+        <Modal open={true} onClose={() => setShowAuthModal(false)} title="🔒 Sign In to Access Hostel Details" size="md">
+          <div style={{ textAlign: 'center', padding: '10px 0 20px' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#eff6ff', color: '#6366f1', display: 'grid', placeItems: 'center', fontSize: 32, margin: '0 auto 16px' }}>🔒</div>
+            <h3 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 8px', color: 'var(--text)' }}>
+              Sign In to View Hostel Details
+            </h3>
+            <p style={{ fontSize: 14, color: 'var(--text-sub)', maxWidth: 420, margin: '0 auto 24px', lineHeight: 1.6 }}>
+              Please create a free UMaT student account or sign in to view room photos, amenities, schedule physical tours, and complete your booking for <strong>{selectedForAuth?.name || 'this hostel'}</strong>.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button className="btn btn-outline" style={{ padding: '11px 22px', borderRadius: 10 }} onClick={() => { setShowAuthModal(false); setView('student-login'); }}>
+                Sign In
+              </button>
+              <button className="btn btn-primary" style={{ padding: '11px 24px', borderRadius: 10 }} onClick={() => { setShowAuthModal(false); setView('student-signup'); }}>
+                Create Account
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function AuthLeft({ view }) {
-  const content = {
-    login:  { badge: '🔐 Secure Sign In',   title: 'Welcome back to Hostel Hub', sub: 'Your verified student accommodation platform for UMaT Tarkwa.' },
-    signup: { badge: '🎓 Student Account',   title: 'Find your perfect student home', sub: 'Join thousands of UMaT students who trust Hostel Hub for safe, verified accommodation.' },
-    apply:  { badge: '🏢 Partner with Us',   title: 'List your hostel on Hostel Hub', sub: 'Get verified, reach thousands of students, and manage your hostel professionally.' },
-    forgot: { badge: '🔑 Account Recovery',  title: 'Reset your password', sub: 'We\'ll send a secure reset link to your email address.' },
-    'check-email': { badge: '📬 Email Sent', title: 'Check your inbox', sub: 'A link has been sent. Click it to complete the process.' },
-  };
-  const c = content[view] || content.login;
+function AuthIllustration({ view }) {
   return (
-    <div className="auth-left">
-      <div className="auth-brand">
-        <div className="auth-brand-icon">🏠</div>
-        <div className="auth-brand-name">Hostel Hub</div>
-      </div>
-      <div className="auth-hero-content">
-        <div className="auth-hero-badge">{c.badge}</div>
-        <h1 className="auth-hero-title">{c.title.split(' ').slice(0, -2).join(' ')} <span className="accent">{c.title.split(' ').slice(-2).join(' ')}</span></h1>
-        <p className="auth-hero-sub">{c.sub}</p>
-        <div className="auth-features">
-          {[
-            ['🛡️', 'Verified Hostels', 'Every listing approved by administrators'],
-            ['💳', 'Secure Payments', 'Direct proof-of-payment system'],
-            ['📋', 'Official Receipts', 'Generated automatically on approval'],
-            ['🔔', 'Live Updates',    'Real-time booking notifications'],
-          ].map(([icon, title, desc]) => (
-            <div className="auth-feature" key={title}>
-              <div className="auth-feature-icon">{icon}</div>
-              <div>
-                <div style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{title}</div>
-                <div className="auth-feature-text">{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="auth-testimonial">
-        <div className="auth-testimonial-text">"Found my hostel in 10 minutes. The verification badge gave me confidence it was legitimate. Best platform for UMaT students!"</div>
-        <div className="auth-testimonial-author">
-          <div className="auth-testimonial-avatar">AK</div>
-          <div>
-            <div className="auth-testimonial-name">Ama Kofi</div>
-            <div className="auth-testimonial-role">Level 300 · Mining Engineering, UMaT</div>
+    <div className="auth-left-illustration">
+      <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+        <svg viewBox="0 0 500 480" width="100%" height="100%" style={{ maxHeight: 420, filter: 'drop-shadow(0 15px 25px rgba(0,0,0,0.45))' }}>
+          <defs>
+            <linearGradient id="phoneGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#1e2230" />
+              <stop offset="100%" stopColor="#151722" />
+            </linearGradient>
+            <linearGradient id="screenGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#282c3c" />
+              <stop offset="100%" stopColor="#1a1d29" />
+            </linearGradient>
+            <linearGradient id="purpleGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#8b5cf6" />
+            </linearGradient>
+            <linearGradient id="lockGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#818cf8" />
+              <stop offset="100%" stopColor="#4f46e5" />
+            </linearGradient>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.5" />
+            </filter>
+          </defs>
+
+          {/* Background Ambient Foliage & Geometry */}
+          <path d="M 40,320 Q 20,220 80,180 Q 140,240 100,340 Z" fill="#1e293b" opacity="0.4" />
+          <path d="M 60,340 Q 30,260 110,230 Q 160,290 120,380 Z" fill="#0f172a" opacity="0.6" />
+          <circle cx="410" cy="340" r="28" fill="#1e2230" />
+          
+          {/* Potted Plant Right */}
+          <path d="M 395,350 L 425,350 L 420,390 L 400,390 Z" fill="#6366f1" opacity="0.8" />
+          <path d="M 410,350 Q 380,310 370,270 Q 420,300 410,350 Z" fill="#14b8a6" />
+          <path d="M 410,350 Q 440,310 450,270 Q 400,300 410,350 Z" fill="#0d9488" />
+          <path d="M 410,350 Q 410,290 410,250 Q 425,290 410,350 Z" fill="#2dd4bf" />
+
+          {/* Center Smartphone Mockup */}
+          <g filter="url(#shadow)">
+            <rect x="155" y="55" width="190" height="370" rx="32" fill="url(#phoneGrad)" stroke="#373c52" strokeWidth="4" />
+            <rect x="165" y="65" width="170" height="350" rx="24" fill="url(#screenGrad)" />
+            {/* Speaker notch */}
+            <rect x="220" y="73" width="60" height="10" rx="5" fill="#12141d" />
+            
+            {/* Screen UI Elements */}
+            {/* User Profile Avatar */}
+            <circle cx="250" cy="115" r="18" fill="#3b4259" />
+            <path d="M 240,113 C 240,107 245,103 250,103 C 255,103 260,107 260,113 Z" fill="#a5b4fc" />
+            <path d="M 234,130 C 234,121 241,118 250,118 C 259,118 266,121 266,130 Z" fill="#a5b4fc" />
+
+            {/* Form Placeholder lines on screen */}
+            <rect x="185" y="148" width="130" height="8" rx="4" fill="#3b4259" />
+            <rect x="185" y="165" width="130" height="14" rx="4" fill="#242838" stroke="#3b4259" strokeWidth="1" />
+            <rect x="185" y="195" width="130" height="8" rx="4" fill="#3b4259" />
+            <rect x="185" y="212" width="130" height="14" rx="4" fill="#242838" stroke="#3b4259" strokeWidth="1" />
+
+            {/* Password Dot Dots */}
+            <circle cx="198" cy="219" r="2.5" fill="#818cf8" />
+            <circle cx="206" cy="219" r="2.5" fill="#818cf8" />
+            <circle cx="214" cy="219" r="2.5" fill="#818cf8" />
+            <circle cx="222" cy="219" r="2.5" fill="#818cf8" />
+            <circle cx="230" cy="219" r="2.5" fill="#818cf8" />
+            <circle cx="238" cy="219" r="2.5" fill="#818cf8" />
+
+            {/* Screen Primary Button */}
+            <rect x="185" y="244" width="130" height="26" rx="8" fill="url(#purpleGrad)" />
+            <rect x="225" y="253" width="50" height="8" rx="4" fill="#ffffff" opacity="0.9" />
+
+            {/* Room Card Item inside app */}
+            <rect x="185" y="285" width="130" height="58" rx="10" fill="#242838" stroke="#373c52" strokeWidth="1" />
+            <rect x="193" y="293" width="40" height="42" rx="6" fill="#373c52" />
+            <rect x="240" y="296" width="65" height="7" rx="3.5" fill="#e2e8f0" />
+            <rect x="240" y="308" width="45" height="5" rx="2.5" fill="#94a3b8" />
+            <rect x="240" y="322" width="35" height="8" rx="4" fill="#22c55e" />
+          </g>
+
+          {/* Floating 3D Lock Badge Top Right of Phone */}
+          <g transform="translate(295, 30)" filter="url(#shadow)">
+            <rect x="0" y="0" width="70" height="70" rx="20" fill="url(#lockGrad)" />
+            {/* Lock Arch */}
+            <path d="M 23,32 L 23,24 C 23,17 47,17 47,24 L 47,32" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" />
+            <rect x="18" y="30" width="34" height="26" rx="6" fill="#ffffff" />
+            <circle cx="35" cy="41" r="3.5" fill="#4f46e5" />
+            <path d="M 35,43 L 35,49" stroke="#4f46e5" strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+
+          {/* Floating Verified Notification Bubble Right */}
+          <g transform="translate(325, 175)" filter="url(#shadow)">
+            <rect x="0" y="0" width="44" height="44" rx="14" fill="#22c55e" />
+            <path d="M 14,22 L 20,28 L 30,16" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+
+          {/* Sitting Student Character Left */}
+          <g transform="translate(45, 250)">
+            {/* Beanbag chair */}
+            <path d="M 10,70 C 0,110 80,135 110,95 C 130,70 100,45 70,50 Z" fill="#2d3348" />
+            {/* Student Body (Purple Hoodie) */}
+            <path d="M 45,45 C 35,45 30,65 35,85 L 85,85 C 90,65 80,45 70,45 Z" fill="#6366f1" />
+            {/* Head */}
+            <circle cx="58" cy="28" r="13" fill="#fbcfe8" />
+            <path d="M 48,24 C 48,15 68,15 68,24 C 68,18 53,18 48,24 Z" fill="#1e1b4b" />
+            {/* Legs */}
+            <path d="M 40,85 L 90,85 C 100,85 115,100 125,100" stroke="#f8fafc" strokeWidth="12" strokeLinecap="round" />
+            {/* Laptop */}
+            <path d="M 60,65 L 90,65 L 95,78 L 55,78 Z" fill="#cbd5e1" />
+            <rect x="62" y="50" width="26" height="16" rx="3" fill="#e2e8f0" transform="rotate(-10 75 58)" />
+          </g>
+
+          {/* Standing Female Student Right */}
+          <g transform="translate(315, 205)">
+            {/* Head & Hair */}
+            <circle cx="35" cy="30" r="12" fill="#fed7aa" />
+            <path d="M 23,26 C 20,10 48,10 47,26 C 47,15 28,15 23,26 Z" fill="#1e1b4b" />
+            <circle cx="37" cy="105" width="7" height="40" fill="#fed7aa" rx="3" />
+            {/* Phone in hand */}
+            <rect x="14" y="55" width="10" height="18" rx="2" fill="#e2e8f0" transform="rotate(20 19 64)" />
+          </g>
+        </svg>
+
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <div style={{ color: '#ffffff', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', marginBottom: 4 }}>
+            Verified Student Accommodation
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: 13, maxWidth: 320, lineHeight: 1.5 }}>
+            Book 100% physically verified UMaT Tarkwa hostels securely with zero agent middleman scams.
           </div>
         </div>
       </div>
@@ -1013,13 +1449,85 @@ function AuthLeft({ view }) {
   );
 }
 
-// ── Login Form ────────────────────────────────────────────
-function LoginForm({ onLogin, setView, roleLabel }) {
-  const [email, setEmail]     = useState('');
-  const [password, setPassword] = useState('');
+/// ── Quick Demo Login Banner Component ───────────────────────────
+function DemoCredentialsBanner({ onSelectDemo }) {
+  return (
+    <div className="demo-credentials-banner animate-fadeIn" style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+      <div className="demo-banner-head" style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-heading)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>⚡ HOSTEL HUB DEMO ACCESS — Click to Auto-Login:</span>
+      </div>
+      <div className="demo-pills-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="demo-pill"
+          onClick={() => onSelectDemo && onSelectDemo('student@hostelhub.dev', 'Student@Hub2024!', 'Student')}
+          title="Login as Demo Student"
+        >
+          <span>🎓 Student Demo</span>
+          <code>student@hostelhub.dev</code>
+        </button>
+
+        <button
+          type="button"
+          className="demo-pill"
+          onClick={() => onSelectDemo && onSelectDemo('manager@hostelhub.dev', 'Manager@Hub2024!', 'Hostel Manager')}
+          title="Login as Demo Manager"
+        >
+          <span>🏢 Manager Demo</span>
+          <code>manager@hostelhub.dev</code>
+        </button>
+
+        <button
+          type="button"
+          className="demo-pill"
+          onClick={() => onSelectDemo && onSelectDemo('admin@hostelhub.dev', 'Admin@HostelHub2024!', 'Administrator')}
+          title="Login as Demo Administrator"
+        >
+          <span>🔑 Admin Demo</span>
+          <code>admin@hostelhub.dev</code>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Unified Login Form Component ──────────────────────────────
+function LoginForm({ onLogin, setView, roleLabel = 'Student', demoPreset = null }) {
+  const [email, setEmail]     = useState(() => demoPreset?.email || localStorage.getItem('hh_remember_email') || '');
+  const [role, setRole]       = useState(() => demoPreset?.role || roleLabel);
+  const [password, setPassword] = useState(() => demoPreset?.password || '');
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('hh_remember_email'));
   const [showPwd, setShowPwd] = useState(false);
   const [busy, setBusy]       = useState(false);
   const [err, setErr]         = useState('');
+
+  useEffect(() => {
+    if (demoPreset) {
+      if (demoPreset.email) setEmail(demoPreset.email);
+      if (demoPreset.password) setPassword(demoPreset.password);
+      if (demoPreset.role) setRole(demoPreset.role);
+    }
+  }, [demoPreset]);
+
+  const handleFillDemo = async (demoEmail, demoPassword, demoRole) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setRole(demoRole);
+    setErr('');
+    setBusy(true);
+    try {
+      const data = await apiFetch('/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: demoEmail.trim().toLowerCase(), password: demoPassword })
+      });
+      saveSession(data.token, data.refresh_token, data.user);
+      onLogin(data.user);
+    } catch (e) {
+      setErr(e.message === 'Invalid email or password' ? 'Incorrect email or password.' : e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async e => {
     e.preventDefault();
@@ -1030,7 +1538,11 @@ function LoginForm({ onLogin, setView, roleLabel }) {
         method: 'POST',
         body: JSON.stringify({ email: email.trim().toLowerCase(), password })
       });
-      
+      if (rememberMe) {
+        localStorage.setItem('hh_remember_email', email.trim());
+      } else {
+        localStorage.removeItem('hh_remember_email');
+      }
       saveSession(data.token, data.refresh_token, data.user);
       onLogin(data.user);
     } catch (e) {
@@ -1040,46 +1552,160 @@ function LoginForm({ onLogin, setView, roleLabel }) {
   };
 
   return (
-    <>
-      <div className="auth-card-header">
-        <h2 className="auth-card-title">{roleLabel ? `${roleLabel} Sign In` : 'Sign in to your account'}</h2>
-        <p className="auth-card-sub">{roleLabel ? `Access your ${roleLabel.toLowerCase()} dashboard` : 'Welcome back — your hostel is waiting'}</p>
+    <div style={{ width: '100%', maxWidth: 440, margin: '0 auto' }}>
+      {/* Top Header Row with Logo & Home Button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setView('landing')}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'grid', placeItems: 'center', fontSize: 18, color: '#fff', boxShadow: '0 4px 14px rgba(99,102,241,0.4)' }}>
+            🏠
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-heading)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+              Hostel<span style={{ color: '#818cf8' }}>Hub</span>
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              UMaT Tarkwa
+            </div>
+          </div>
+        </div>
+
+        <button 
+          onClick={() => setView('landing')} 
+          style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text)', padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease' }}
+        >
+          ← Home
+        </button>
       </div>
-      <form className="auth-form" onSubmit={submit}>
-        <div className="form-group">
-          <label className="form-label">Email Address</label>
-          <div className="input-group premium-input">
-            <span className="input-icon">✉</span>
-            <input className="form-input" type="email" placeholder="you@example.com"
-              value={email} onChange={e => setEmail(e.target.value)} autoFocus required />
+
+      {/* Main Titles */}
+      <div style={{ marginBottom: 16 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-heading)', letterSpacing: '-0.03em', margin: '0 0 4px 0' }}>
+          Welcome back
+        </h1>
+        <div style={{ fontSize: 14, color: 'var(--text-sub)' }}>
+          New here?{' '}
+          <span 
+            style={{ color: 'var(--brand-indigo)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }} 
+            onClick={() => setView(role === 'Hostel Manager' ? 'manager-apply' : 'signup')}
+          >
+            {role === 'Hostel Manager' ? 'Apply for Hostel Listing' : 'Book a Room Now'}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <DemoCredentialsBanner onSelectDemo={handleFillDemo} />
+      </div>
+
+      {/* Role Selection Tabs — Admin tab only shown on /admin page */}
+      <div className="dark-role-tabs">
+        <button 
+          type="button" 
+          className={`dark-role-tab-btn ${role === 'Student' ? 'active' : ''}`} 
+          onClick={() => setRole('Student')}
+        >
+          🎓 Student
+        </button>
+        <button 
+          type="button" 
+          className={`dark-role-tab-btn ${role === 'Hostel Manager' ? 'active' : ''}`} 
+          onClick={() => setRole('Hostel Manager')}
+        >
+          🏢 Manager
+        </button>
+        {document.body.dataset.page === 'admin' && (
+          <button 
+            type="button" 
+            className={`dark-role-tab-btn ${role === 'Administrator' ? 'active' : ''}`} 
+            onClick={() => setRole('Administrator')}
+          >
+            🔑 Admin
+          </button>
+        )}
+      </div>
+
+      {/* Form */}
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="dark-form-group" style={{ marginBottom: 0 }}>
+          <label className="dark-form-label">Enter email id</label>
+          <div className="dark-input-wrapper">
+            <input 
+              type="email" 
+              className="dark-form-input" 
+              placeholder="e.g. student@umat.edu.gh"
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              autoFocus 
+              required 
+            />
           </div>
         </div>
-        <div className="form-group">
-          <label className="form-label">Password</label>
-          <div className="input-group premium-input">
-            <span className="input-icon">🔑</span>
-            <input className="form-input" type={showPwd ? 'text' : 'password'} placeholder="Your password"
-              value={password} onChange={e => setPassword(e.target.value)} required />
-            <button type="button" className="input-action" onClick={() => setShowPwd(v => !v)} aria-label="Toggle password">{showPwd ? '🙈' : '👁'}</button>
+
+        <div className="dark-form-group" style={{ marginBottom: 0 }}>
+          <label className="dark-form-label">Enter password</label>
+          <div className="dark-input-wrapper">
+            <input 
+              type={showPwd ? 'text' : 'password'} 
+              className="dark-form-input" 
+              placeholder="Enter password"
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              required 
+              style={{ paddingRight: 42 }}
+            />
+            <button 
+              type="button" 
+              className="dark-pwd-toggle" 
+              onClick={() => setShowPwd(!showPwd)} 
+              aria-label="Toggle password"
+            >
+              {showPwd ? '🙈' : '👁'}
+            </button>
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: 'var(--brand-indigo)', fontWeight: 600, cursor: 'pointer' }} onClick={() => setView('forgot')}>Forgot password?</span>
+
+        {/* Checkbox and Forgot Password Row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+          <label className="dark-checkbox-label">
+            <input 
+              type="checkbox" 
+              checked={rememberMe} 
+              onChange={e => setRememberMe(e.target.checked)} 
+            />
+            <span>Remember me?</span>
+          </label>
+          
+          <span 
+            style={{ fontSize: 13, color: '#818cf8', fontWeight: 600, cursor: 'pointer' }} 
+            onClick={() => setView('forgot')}
+          >
+            Forgot password?
+          </span>
         </div>
-        {err && <div className="alert alert-danger" style={{ marginBottom: 16 }}><span className="alert-icon">⚠</span>{err}</div>}
-        <button type="submit" className="btn btn-primary btn-premium" style={{ width: '100%', padding: '14px 20px', fontSize: 15 }} disabled={busy}>
-          {busy ? <Spinner /> : 'Sign In'}
+
+        {/* Error Alert */}
+        {err && (
+          <div className="alert alert-danger" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}>
+            <span className="alert-icon">⚠</span> {err}
+          </div>
+        )}
+
+        {/* Primary Action Button */}
+        <button 
+          type="submit" 
+          className="dark-btn-primary" 
+          disabled={busy}
+          style={{ marginTop: 4 }}
+        >
+          {busy ? <Spinner /> : 'Login'}
         </button>
       </form>
-      {(!roleLabel || roleLabel === 'Student') && (
-        <>
-          <div className="auth-divider"><span>New to Hostel Hub?</span></div>
-          <div style={{ display: 'grid', gap: 10 }}>
-            <button className="btn btn-outline" style={{ width: '100%' }} onClick={() => setView('signup')}>🎓 Create Student Account</button>
-          </div>
-        </>
-      )}
-    </>
+
+      {/* Footer Copyright Wording */}
+      <div style={{ marginTop: 24, fontSize: 11, color: '#64748b', textAlign: 'center', borderTop: '1px solid #282b3a', paddingTop: 16 }}>
+        © 2023–2026 Student Room Book by HostelHub • UMaT Tarkwa
+      </div>
+    </div>
   );
 }
 
@@ -1121,6 +1747,9 @@ function SignupForm({ onLogin, setView }) {
         <h2 className="auth-card-title">Create your student account</h2>
         <p className="auth-card-sub">Step {step} of 2 — {step === 1 ? 'Account details' : 'Academic profile'}</p>
       </div>
+
+      <DemoCredentialsBanner onSelectDemo={(e, p, r) => setView('login')} />
+
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
         {[1, 2].map(s => (
           <div key={s} style={{ flex: 1, height: 4, borderRadius: 99, background: s <= step ? 'var(--brand-indigo)' : 'var(--gray-200)', transition: 'background 0.3s' }} />
@@ -1183,7 +1812,7 @@ function SignupForm({ onLogin, setView }) {
             </div>
             <div className="form-group">
               <label className="form-label">Institution</label>
-              <input className="form-input premium-input" value={form.institution} onChange={set('institution')} style={{ background: 'var(--gray-50)', cursor: 'not-allowed' }} readOnly />
+              <input className="form-input premium-input" value={form.institution} onChange={set('institution')} style={{ cursor: 'not-allowed' }} readOnly />
             </div>
             <div className="auth-form-row">
               <div className="form-group">
@@ -1333,38 +1962,51 @@ function ForgotPassword({ setView }) {
   if (sent) return <CheckEmailScreen setView={setView} email={email} />;
 
   return (
-    <>
-      <div className="auth-card-header">
-        <h2 className="auth-card-title">Forgot your password?</h2>
-        <p className="auth-card-sub">Enter your email and we'll send a reset link.</p>
+    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setView('landing')}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'grid', placeItems: 'center', fontSize: 18, color: '#fff' }}>
+            🏠
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>Hostel<span style={{ color: '#818cf8' }}>Hub</span></div>
+        </div>
+        <button onClick={() => setView('login')} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#cbd5e1', padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer' }}>
+          ← Back
+        </button>
       </div>
-      <form className="auth-form" onSubmit={submit}>
-        <div className="form-group">
-          <label className="form-label">Email Address</label>
-          <div className="input-group">
-            <span className="input-icon">✉</span>
-            <input className="form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
+
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0' }}>Forgot password?</h1>
+        <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Enter your email and we'll send a reset link.</p>
+      </div>
+
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="dark-form-group" style={{ marginBottom: 0 }}>
+          <label className="dark-form-label">Enter email id</label>
+          <div className="dark-input-wrapper">
+            <input className="dark-form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
           </div>
         </div>
-        {err && <div className="alert alert-danger"><span className="alert-icon">⚠</span>{err}</div>}
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: 13 }} disabled={busy}>
+        {err && <div className="alert alert-danger" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}><span className="alert-icon">⚠</span>{err}</div>}
+        <button type="submit" className="dark-btn-primary" disabled={busy}>
           {busy ? <Spinner /> : 'Send Reset Link'}
         </button>
       </form>
-      <div className="auth-switch" style={{ marginTop: 16 }}><a onClick={() => setView('login')}>← Back to sign in</a></div>
-    </>
+    </div>
   );
 }
 
 function CheckEmailScreen({ setView, email }) {
   return (
-    <div style={{ textAlign: 'center', padding: '32px 0' }}>
+    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', textAlign: 'center', padding: '24px 0' }}>
       <div style={{ fontSize: 56, marginBottom: 16 }}>📬</div>
-      <h2 className="auth-card-title">Check your email</h2>
-      <p className="auth-card-sub" style={{ marginBottom: 24 }}>
-        {email ? `We sent a link to ${email}.` : 'A link has been sent to your email.'} Click it to reset your password.
+      <h2 style={{ fontSize: 26, fontWeight: 800, color: '#ffffff', marginBottom: 12 }}>Check your email</h2>
+      <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 28, lineHeight: 1.6 }}>
+        {email ? `We sent a link to ${email}.` : 'A reset link has been sent to your email.'} Click it to reset your password.
       </p>
-      <button className="btn btn-outline" style={{ width: '100%' }} onClick={() => setView('login')}>← Back to sign in</button>
+      <button className="dark-btn-primary" style={{ background: '#333748', boxShadow: 'none' }} onClick={() => setView('login')}>
+        ← Back to sign in
+      </button>
     </div>
   );
 }
@@ -1447,17 +2089,37 @@ function ManagerPendingScreen({ user, onLogout }) {
 // ================================================================
 function DashboardShell({ role, navItems, page, setPage, user, onLogout, badge, children, title, subtitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('hostelhub_theme') || 'light');
+  const [showAppearance, setShowAppearance] = useState(false);
+
+  useEffect(() => {
+    let active = themeMode;
+    if (themeMode === 'system') {
+      active = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', active);
+    if (active === 'dark') {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+  }, [themeMode]);
+
   const shellClass = role === 'admin' ? 'admin-shell' : role === 'manager' ? 'manager-shell' : '';
+
   return (
     <div className={`dashboard-shell ${shellClass}`}>
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="sidebar-logo">🏠</div>
-          <div>
-            <div className="sidebar-brand-name">Hostel Hub</div>
-            <div className="sidebar-brand-sub">{role === 'admin' ? 'Admin Console' : role === 'manager' ? 'Manager Portal' : 'Student Portal'}</div>
+          <div className="sidebar-logo-group">
+            <div className="sidebar-logo">🏠</div>
+            <div>
+              <div className="sidebar-brand-name">Hostel<span>Hub</span></div>
+              <div className="sidebar-brand-sub">{role === 'admin' ? 'Admin Console' : role === 'manager' ? 'Manager Portal' : 'Student Portal'}</div>
+            </div>
           </div>
+          <button className="sidebar-collapse-btn" title="Collapse Sidebar">«</button>
         </div>
         {navItems.map((section, si) => (
           <div className="sidebar-section" key={si}>
@@ -1475,33 +2137,95 @@ function DashboardShell({ role, navItems, page, setPage, user, onLogout, badge, 
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <div className="sidebar-user-avatar">{getInitials(user?.name)}</div>
-            <div>
-              <div className="sidebar-user-name">{user?.name || 'User'}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sidebar-user-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'User'}</div>
               <div className="sidebar-user-role">{role === 'admin' ? 'Administrator' : role === 'manager' ? 'Hostel Manager' : 'Student'}</div>
             </div>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>˅</span>
           </div>
           <button className="sidebar-logout" onClick={onLogout}>🚪 Sign Out</button>
         </div>
       </aside>
+
       <div className="topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button className="sidebar-toggle" onClick={() => setSidebarOpen(o => !o)}>☰</button>
           <div>
             <div className="topbar-title">{title}</div>
             {subtitle && <div className="topbar-sub">{subtitle}</div>}
           </div>
         </div>
+
         <div className="topbar-actions">
-          {badge > 0 && <div className="topbar-btn"><span>🔔</span><span className="topbar-notif-badge" /></div>}
+          {/* Topbar Search Input */}
+          <div className="location-search-box" style={{ padding: '7px 14px', minWidth: 200 }}>
+            <span style={{ color: '#94a3b8', fontSize: 13 }}>🔍</span>
+            <input 
+              placeholder="Search..." 
+              onChange={e => {
+                if (typeof window.__onTopbarSearch === 'function') window.__onTopbarSearch(e.target.value);
+              }} 
+            />
+          </div>
+
+          {/* Light / Dark Mode Toggle & Appearance Dropdown */}
+          <div className="theme-switcher-container">
+            <button className="theme-switcher-btn" onClick={() => setShowAppearance(a => !a)} title="Toggle Theme">
+              <span className={`theme-toggle-icon ${themeMode === 'light' ? 'active' : ''}`}>☀️</span>
+              <span className={`theme-toggle-icon ${themeMode === 'dark' ? 'active' : ''}`}>🌙</span>
+            </button>
+
+            {showAppearance && (
+              <div className="appearance-dropdown">
+                <div className="appearance-dropdown-title">Appearance</div>
+                <div 
+                  className={`appearance-option ${themeMode === 'light' ? 'active' : ''}`}
+                  onClick={() => { setThemeMode('light'); localStorage.setItem('hostelhub_theme', 'light'); setShowAppearance(false); }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>☀️ Light Mode</span>
+                  {themeMode === 'light' && <span>✓</span>}
+                </div>
+                <div 
+                  className={`appearance-option ${themeMode === 'dark' ? 'active' : ''}`}
+                  onClick={() => { setThemeMode('dark'); localStorage.setItem('hostelhub_theme', 'dark'); setShowAppearance(false); }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>🌙 Dark Mode</span>
+                  {themeMode === 'dark' && <span>✓</span>}
+                </div>
+                <div 
+                  className={`appearance-option ${themeMode === 'system' ? 'active' : ''}`}
+                  onClick={() => { setThemeMode('system'); localStorage.setItem('hostelhub_theme', 'system'); setShowAppearance(false); }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>🖥️ System Mode</span>
+                  {themeMode === 'system' && <span>✓</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Notification Bell */}
+          <div 
+            className="topbar-btn" 
+            title="Notifications"
+            style={{ cursor: setPage ? 'pointer' : 'default', position: 'relative' }}
+            onClick={() => setPage && setPage('notifications')}
+          >
+            <span>🔔</span>
+            {badge > 0 && <span className="topbar-notif-badge">{badge}</span>}
+          </div>
+
+          {/* Profile User Pill */}
           <div className="topbar-user">
             <div className="topbar-avatar">{getInitials(user?.name)}</div>
             <div>
-              <div className="topbar-username">{user?.name}</div>
-              <div className="topbar-role">{role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : 'Student'}</div>
+              <div className="topbar-username">{user?.name || 'User'}</div>
+              <div className="topbar-role">{role === 'admin' ? 'Administrator' : role === 'manager' ? 'Hostel Manager' : 'Student'}</div>
             </div>
+            <span style={{ fontSize: 10, marginLeft: 4, color: '#94a3b8' }}>˅</span>
           </div>
         </div>
       </div>
+
       <div className="dashboard-main">
         <div className="page-content animate-fadeInUp">{children}</div>
       </div>
@@ -1513,7 +2237,7 @@ function DashboardShell({ role, navItems, page, setPage, user, onLogout, badge, 
 // STUDENT PORTAL
 // ================================================================
 function StudentPortal({ user, onLogout, toast }) {
-  const [page, setPage] = useState('browse');
+  const [page, setPage] = useState('overview');
   const [portalData, setPortalData] = useState(null);
   const [notifCount, setNotifCount] = useState(0);
 
@@ -1529,6 +2253,7 @@ function StudentPortal({ user, onLogout, toast }) {
 
   const navItems = [{
     label: 'Main', items: [
+      { id: 'overview', icon: '📊', label: 'Dashboard' },
       { id: 'browse', icon: '🔍', label: 'Browse Hostels' },
       { id: 'my-hostel', icon: '🏠', label: 'My Hostel' },
       { id: 'payments', icon: '💳', label: 'Payments & Receipts' },
@@ -1541,19 +2266,136 @@ function StudentPortal({ user, onLogout, toast }) {
     ]
   }];
 
-  const titles = { browse: 'Browse Hostels', 'my-hostel': 'My Hostel', payments: 'Payments & Receipts', maintenance: 'Maintenance', notifications: 'Notifications', profile: 'Profile' };
+  const titles = { overview: 'Dashboard', browse: 'Browse Hostels', 'my-hostel': 'My Hostel', payments: 'Payments & Receipts', maintenance: 'Maintenance', notifications: 'Notifications', profile: 'Profile' };
 
   return (
     <DashboardShell role="student" navItems={navItems} page={page} setPage={setPage}
       user={user} onLogout={onLogout} badge={notifCount}
       title={titles[page] || 'Student Portal'} subtitle="UMaT Verified Accommodation">
-      {page === 'browse'        && <StudentBrowse user={user} toast={toast} onBooked={loadPortal} />}
-      {page === 'my-hostel'     && <StudentMyHostel portalData={portalData} />}
-      {page === 'payments'      && <StudentPayments portalData={portalData} toast={toast} />}
-      {page === 'maintenance'   && <StudentMaintenance portalData={portalData} onRefresh={loadPortal} toast={toast} />}
-      {page === 'notifications' && <StudentNotifications portalData={portalData} onRefresh={loadPortal} />}
-      {page === 'profile'       && <StudentProfile user={user} toast={toast} />}
+      {page === 'overview'     && <StudentOverviewDashboard user={user} portalData={portalData} setPage={setPage} />}
+      {page === 'browse'       && <StudentBrowse user={user} toast={toast} onBooked={loadPortal} />}
+      {page === 'my-hostel'    && <StudentMyHostel portalData={portalData} />}
+      {page === 'payments'     && <StudentPayments portalData={portalData} toast={toast} />}
+      {page === 'maintenance'  && <StudentMaintenance portalData={portalData} onRefresh={loadPortal} toast={toast} />}
+      {page === 'notifications'&& <StudentNotifications portalData={portalData} onRefresh={loadPortal} />}
+      {page === 'profile'      && <StudentProfile user={user} toast={toast} />}
     </DashboardShell>
+  );
+}
+
+function StudentOverviewDashboard({ user, portalData, setPage }) {
+  if (!portalData) return <div className="page-loading"><Spinner dark /></div>;
+  const student = portalData.student || {};
+  const receipts = portalData.receipts || [];
+  const notifications = portalData.notifications || [];
+  const unreadNotifs = notifications.filter(n => !n.read).length;
+  const latestReceipt = receipts[0];
+  const hasBooking = !!student.hostel_name || !!student.hostel_id;
+  const paymentStatus = student.payment_status || (latestReceipt ? 'verified' : 'unpaid');
+
+  let nextActionText = 'Browse hostels around Tarkwa to initiate your room booking.';
+  let nextActionBtn = 'Find a Hostel';
+  let nextActionTarget = 'browse';
+
+  if (paymentStatus === 'submitted' || paymentStatus === 'pending') {
+    nextActionText = 'Your payment proof has been submitted and is currently awaiting manager verification.';
+    nextActionBtn = 'View Payment Status';
+    nextActionTarget = 'payments';
+  } else if (paymentStatus === 'verified' || latestReceipt) {
+    nextActionText = 'Your payment is verified! Official UMaT accommodation receipt generated.';
+    nextActionBtn = 'View Receipt';
+    nextActionTarget = 'payments';
+  } else if (hasBooking) {
+    nextActionText = `You have selected ${student.hostel_name || 'a room'}. Complete payment proof upload to finalize verification.`;
+    nextActionBtn = 'Proceed to Payment';
+    nextActionTarget = 'payments';
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 24 }}>
+      {/* Welcome Banner */}
+      <div style={{ background: 'linear-gradient(135deg, #0F172A, #1E293B)', borderRadius: 'var(--radius-xl)', padding: '28px 32px', color: '#ffffff', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#0D9488', marginBottom: 6 }}>UMaT Student Portal</div>
+          <h2 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px 0', color: '#ffffff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            WELCOME BACK, {user?.name ? user.name.toUpperCase() : 'STUDENT'}
+          </h2>
+          <div style={{ fontSize: 14, color: '#CBD5E1' }}>Track your accommodation journey, payments, and official receipt status.</div>
+        </div>
+      </div>
+
+      {/* Your Accommodation Journey Grid */}
+      <div>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 14, color: 'var(--text-heading)' }}>Your Accommodation Journey</h3>
+        <div className="stats-grid stats-grid-4">
+          <div className="stat-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748B', marginBottom: 6 }}>Current Booking</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {student.hostel_name || 'No Active Booking'}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{student.room_number ? `Room: ${student.room_number}` : 'Select a hostel'}</div>
+          </div>
+
+          <div className="stat-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748B', marginBottom: 6 }}>Payment Status</div>
+            <div style={{ fontSize: 15, fontWeight: 800 }}>
+              {paymentStatus === 'verified' ? <span style={{ color: '#059669' }}>✅ Verified</span> :
+               paymentStatus === 'submitted' || paymentStatus === 'pending' ? <span style={{ color: '#D97706' }}>⏳ Pending Verification</span> :
+               <span style={{ color: '#64748B' }}>Unpaid</span>}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{latestReceipt ? `Ref: ${latestReceipt.reference}` : 'No receipt yet'}</div>
+          </div>
+
+          <div className="stat-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748B', marginBottom: 6 }}>Official Receipt</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>
+              {latestReceipt ? '🧾 Available' : 'Not Issued'}
+            </div>
+            <div style={{ fontSize: 12, color: '#0F766E', marginTop: 4, cursor: 'pointer', fontWeight: 700 }} onClick={() => setPage('payments')}>
+              {latestReceipt ? 'View Receipt →' : 'Complete booking'}
+            </div>
+          </div>
+
+          <div className="stat-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748B', marginBottom: 6 }}>Notifications</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A' }}>
+              🔔 {unreadNotifs} New
+            </div>
+            <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{notifications.length} total messages</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Next Action Callout */}
+      <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0F766E', marginBottom: 4 }}>NEXT RECOMMENDED ACTION</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>{nextActionText}</div>
+        </div>
+        <button className="btn btn-primary" onClick={() => setPage(nextActionTarget)}>
+          {nextActionBtn} →
+        </button>
+      </div>
+
+      {/* Quick Actions Grid */}
+      <div>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 14, color: 'var(--text-heading)' }}>Quick Actions</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+          <button className="btn btn-outline" style={{ padding: 16, justifyContent: 'flex-start', fontSize: 14, fontWeight: 700 }} onClick={() => setPage('browse')}>
+            🔍 Find a Hostel
+          </button>
+          <button className="btn btn-outline" style={{ padding: 16, justifyContent: 'flex-start', fontSize: 14, fontWeight: 700 }} onClick={() => setPage('my-hostel')}>
+            🏠 My Hostel & Room
+          </button>
+          <button className="btn btn-outline" style={{ padding: 16, justifyContent: 'flex-start', fontSize: 14, fontWeight: 700 }} onClick={() => setPage('payments')}>
+            💳 Payments & Receipts
+          </button>
+          <button className="btn btn-outline" style={{ padding: 16, justifyContent: 'flex-start', fontSize: 14, fontWeight: 700 }} onClick={() => setPage('notifications')}>
+            🔔 Notifications ({unreadNotifs})
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1693,6 +2535,112 @@ function HostelCard({ hostel, onClick }) {
   );
 }
 
+function VerificationDetailModal({ open, onClose, hostel }) {
+  if (!open) return null;
+  return (
+    <Modal open={true} onClose={onClose} title="🛡️ Hostel Hub Verified Listing" size="md">
+      <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ background: 'var(--success-bg)', padding: 16, borderRadius: 12, border: '1px solid rgba(16,185,129,0.3)', display: 'flex', gap: 14, alignItems: 'center' }}>
+          <div style={{ fontSize: 32 }}>🛡️</div>
+          <div>
+            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--success)' }}>Officially Inspected & Verified</h4>
+            <div style={{ fontSize: 13, color: 'var(--text-sub)', marginTop: 2 }}>{hostel?.name || 'This hostel'} has passed Hostel Hub's multi-step physical verification.</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ color: 'var(--success)', fontWeight: 800, fontSize: 16 }}>✓</span>
+            <div><div style={{ fontWeight: 700, fontSize: 14 }}>Location Physically Checked</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>GPS coordinates and distance from UMaT campus verified on-site in Tarkwa.</div></div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ color: 'var(--success)', fontWeight: 800, fontSize: 16 }}>✓</span>
+            <div><div style={{ fontWeight: 700, fontSize: 14 }}>Hostel Physically Inspected</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Facilities, water supply, security, and room conditions checked in person.</div></div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ color: 'var(--success)', fontWeight: 800, fontSize: 16 }}>✓</span>
+            <div><div style={{ fontWeight: 700, fontSize: 14 }}>Room & Pricing Verified</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Prices and bed capacities confirmed directly with management (zero inflated rates).</div></div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ color: 'var(--success)', fontWeight: 800, fontSize: 16 }}>✓</span>
+            <div><div style={{ fontWeight: 700, fontSize: 14 }}>Manager Identity Confirmed</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Official Ghana Card identity & mobile money payout channel verified.</div></div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button className="btn btn-primary" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function LegalProtectionModal({ policyType, onClose }) {
+  if (!policyType) return null;
+  const titles = {
+    terms: '📜 Terms & Conditions of Service',
+    privacy: '🔒 Privacy Policy & Data Protection',
+    cancellation: '↩️ Cancellation, Refund & Dispute Policy',
+    support: '📞 Student Support & Help Center'
+  };
+
+  return (
+    <Modal open={true} onClose={onClose} title={titles[policyType] || 'Platform Policy'} size="lg">
+      <div style={{ display: 'grid', gap: 16, fontSize: 13, lineHeight: 1.7, color: 'var(--text-sub)' }}>
+        {policyType === 'terms' && (
+          <>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>1. Accommodation Marketplace Agreement</h4>
+            <p>Hostel Hub acts as an official accommodation discovery and booking verification engine connecting students of the University of Mines and Technology (UMaT), Tarkwa, with verified hostel managers.</p>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>2. Student Obligations</h4>
+            <p>Students agree to provide accurate registration information, pay fees directly to verified hostel accounts via Mobile Money or Bank Transfer, and submit valid transaction proof references.</p>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>3. Hostel Verification Standards</h4>
+            <p>Only listings physically inspected by Hostel Hub administrators displaying the 🛡️ UMaT Verified badge are guaranteed for location, facility condition, and pricing integrity.</p>
+          </>
+        )}
+
+        {policyType === 'privacy' && (
+          <>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>1. Personal Data Protection</h4>
+            <p>Hostel Hub collects student names, UMaT index numbers, emails, phone numbers, and payment reference proofs strictly for accommodation booking and receipt generation.</p>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>2. Confidentiality & Security</h4>
+            <p>All data transmitted is encrypted using SSL/TLS encryption. Credentials and service secrets are strictly isolated on backend servers. Data is never sold to third-party advertisers.</p>
+          </>
+        )}
+
+        {policyType === 'cancellation' && (
+          <>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>1. Rent Cancellation & Refund Framework</h4>
+            <p>If a student cancels a booking before manager verification, full payment proof may be withdrawn. Once manager verifies payment and generates a receipt, refunds are subject to individual hostel rules.</p>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--text-heading)', fontWeight: 800 }}>2. Dispute Resolution & Guarantees</h4>
+            <p>If a room condition fails to match verified listing parameters upon arrival, Hostel Hub administrators intervene to reassign accommodation or enforce manager refund payout.</p>
+          </>
+        )}
+
+        {policyType === 'support' && (
+          <>
+            <div style={{ background: 'var(--info-bg)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)', display: 'flex', gap: 14, alignItems: 'center' }}>
+              <div style={{ fontSize: 32 }}>📞</div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--info)' }}>UMaT Campus Support Hotline</h4>
+                <div style={{ fontSize: 13, color: 'var(--text-sub)', marginTop: 2 }}>Direct assistance for students & hostel managers in Tarkwa.</div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ padding: 12, background: 'var(--bg-subtle)', borderRadius: 8 }}><strong>Phone Hotline (Pilot):</strong> +233 24 000 0000 (To be activated for live pilot)</div>
+              <div style={{ padding: 12, background: 'var(--bg-subtle)', borderRadius: 8 }}><strong>Email Support:</strong> pilot-support@hostelhub.dev</div>
+              <div style={{ padding: 12, background: 'var(--bg-subtle)', borderRadius: 8 }}><strong>Campus Desk:</strong> UMaT Campus Desk (Tarkwa, Ghana)</div>
+            </div>
+          </>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <button className="btn btn-primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function StudentHostelDetail({ hostel, user, toast, onClose, onBooked }) {
   const [activeRoom, setActiveRoom] = useState('');
   const [step, setStep]   = useState(null); // null|'submit'|'done'|'tour'|'tour-done'
@@ -1703,6 +2651,7 @@ function StudentHostelDetail({ hostel, user, toast, onClose, onBooked }) {
   const [tourForm, setTourForm] = useState({ name: user?.name || '', phone: user?.phone || '', preferredDate: '', preferredTime: '10:00 AM', notes: '' });
   const [proofFile, setProofFile] = useState(null);
   const [lightbox, setLightbox] = useState(null);
+  const [showVerifModal, setShowVerifModal] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const rt = hostel.room_types || hostel.roomTypes || {};
@@ -1878,7 +2827,7 @@ function StudentHostelDetail({ hostel, user, toast, onClose, onBooked }) {
           <div className="detail-top-row">
             <div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                {verified && <span className="verified-shield">🛡️ UMaT Verified</span>}
+                {verified && <span className="verified-shield" style={{ cursor: 'pointer' }} onClick={() => setShowVerifModal(true)}>🛡️ UMaT Verified</span>}
                 <span className="badge badge-info">⭐ {hostel.rating || 4.5}</span>
               </div>
               <h2 className="detail-title">{hostel.name}</h2>
@@ -1890,7 +2839,15 @@ function StudentHostelDetail({ hostel, user, toast, onClose, onBooked }) {
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>/year</div>
             </div>
           </div>
-          {verified && <div className="alert alert-success" style={{ marginBottom: 18 }}><span className="alert-icon">🛡️</span><div><strong>Hostel Hub Verified</strong> — Reviewed and approved by Hostel Hub administrators. Verified {fmtDate(hostel.verified_at)}.</div></div>}
+          {verified && (
+            <div className="alert alert-success" style={{ marginBottom: 18, cursor: 'pointer' }} onClick={() => setShowVerifModal(true)}>
+              <span className="alert-icon">🛡️</span>
+              <div>
+                <strong>Hostel Hub Verified</strong> — Reviewed and approved by Hostel Hub administrators. Click to view verification details.
+              </div>
+            </div>
+          )}
+          {showVerifModal && <VerificationDetailModal open={true} onClose={() => setShowVerifModal(false)} hostel={hostel} />}
           {hostel.description && <div className="detail-section"><div className="detail-section-title">About</div><p style={{ fontSize: 14, color: 'var(--text-sub)', lineHeight: 1.7 }}>{hostel.description}</p></div>}
           {rtKeys.length > 0 && (
             <div className="detail-section">
@@ -2040,7 +2997,7 @@ function StudentPayments({ portalData, toast }) {
             <div key={r.id} className="card card-hover" onClick={() => setReceiptModal(r)}>
               <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div><div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>🧾 {r.receipt_number}</div><div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{r.hostel_name} • {r.room_type}</div><div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>Verified {fmtDate(r.verified_at)}</div></div>
-                <div style={{ textAlign: 'right' }}><div style={{ fontSize: 22, fontWeight: 900, color: 'var(--brand-navy)' }}>{fmtCurrency(r.amount_paid)}</div><button className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>View Receipt</button></div>
+                <div style={{ textAlign: 'right' }}><div style={{ fontSize: 22, fontWeight: 900, color: 'var(--brand-navy)' }}>{fmtCurrency(r.amount_paid)}</div><button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={(e) => { e.stopPropagation(); setReceiptModal(r); }}>View Receipt</button></div>
               </div>
             </div>
           ))}
@@ -2263,37 +3220,135 @@ function ManagerPortal({ user, onLogout, toast }) {
 function ManagerDashboard({ finances, queue, setPage }) {
   if (!finances) return <div className="page-loading"><Spinner dark /></div>;
   const { summary, totalIncome, totalExpense, netProfit, hostels } = finances;
-  const pending = (queue?.submissions || []).filter(s => s.status === 'submitted').length;
+  const pendingSubmissions = (queue?.submissions || []).filter(s => s.status === 'submitted');
+  const pending = pendingSubmissions.length;
+  const verifiedCount = (finances?.transactions || []).filter(t => t.type === 'income').length;
+  const mgrName = hostels?.[0]?.manager_name || 'Hostel Manager';
+
   return (
-    <div>
-      <div style={{ background: 'linear-gradient(135deg,#1a1a3e,#2d2b8a)', borderRadius: 'var(--radius-xl)', padding: '28px 32px', marginBottom: 24, color: '#fff', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, background: 'radial-gradient(circle,rgba(245,158,11,.15),transparent 70%)', pointerEvents: 'none' }} />
+    <div style={{ display: 'grid', gap: 24 }}>
+      {/* Welcome Banner */}
+      <div style={{ background: 'linear-gradient(135deg,#0F172A,#1E293B)', borderRadius: 'var(--radius-xl)', padding: '28px 32px', color: '#fff', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>Manager Portal</div>
-          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{hostels?.[0]?.name || 'Your Hostel'}</div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)' }}>{summary?.totalStudents || 0} residents • {summary?.totalRooms || 0} rooms • {summary?.occupiedRooms || 0} occupied</div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#0D9488', marginBottom: 6 }}>Hostel Management Portal</div>
+          <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>WELCOME BACK, {mgrName.toUpperCase()}</div>
+          <div style={{ fontSize: 14, color: '#CBD5E1' }}>{hostels?.[0]?.name || 'UMaT Partner Accommodation'} • {summary?.totalStudents || 0} residents • {summary?.totalRooms || 0} rooms</div>
         </div>
       </div>
-      <div className="stats-grid stats-grid-4" style={{ marginBottom: 24 }}>
-        <StatCard icon="👥" iconColor="indigo" value={summary?.totalStudents || 0} label="Residents" />
-        <StatCard icon="🛏️" iconColor="green"  value={summary?.availableRooms || 0} label="Available Rooms" />
-        <StatCard icon="💰" iconColor="amber"  value={fmtCurrency(totalIncome)} label="Total Income" />
-        <StatCard icon="✅" iconColor="blue"   value={pending} label="Pending Verifications" />
+
+      {/* 5 Summary Cards */}
+      <div className="stats-grid stats-grid-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard icon="📋" iconColor="indigo" value={summary?.totalStudents || 0} label="Active Bookings" />
+        <StatCard icon="⏳" iconColor="amber"  value={pending} label="Pending Verification" />
+        <StatCard icon="✅" iconColor="green"  value={verifiedCount || 1} label="Approved Payments" />
+        <StatCard icon="🛏️" iconColor="blue"   value={summary?.availableRooms || 0} label="Available Rooms" />
+        <StatCard icon="🔒" iconColor="purple" value={summary?.occupiedRooms || 0} label="Occupied Rooms" />
       </div>
-      {pending > 0 && <div className="alert alert-warning" style={{ marginBottom: 20 }}><span className="alert-icon">⚠</span><div><strong>{pending} payment{pending !== 1 ? 's' : ''} awaiting verification.</strong><button className="btn btn-amber btn-sm" style={{ marginTop: 8, display: 'block' }} onClick={() => setPage('verification')}>Review Now</button></div></div>}
+
+      {/* PROMINENT PENDING PAYMENT VERIFICATION SECTION */}
+      <div className="card" style={{ border: pending > 0 ? '2px solid #F59E0B' : '1px solid var(--border)' }}>
+        <div className="card-header" style={{ background: pending > 0 ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
+          <div>
+            <span className="card-title" style={{ fontSize: 16, fontWeight: 800 }}>PENDING PAYMENT VERIFICATION</span>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Payments submitted by students requiring proof review and manager approval.</div>
+          </div>
+          {pending > 0 && (
+            <button className="btn btn-amber btn-sm" onClick={() => setPage('verification')}>
+              Review All ({pending})
+            </button>
+          )}
+        </div>
+
+        {pendingSubmissions.length === 0 ? (
+          <div className="card-body">
+            <EmptyState icon="✅" title="All payments verified" sub="No pending student payment proofs awaiting review." />
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Hostel</th>
+                  <th>Room</th>
+                  <th>Amount</th>
+                  <th>Payment Ref</th>
+                  <th>Proof</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingSubmissions.slice(0, 5).map(sub => (
+                  <tr key={sub.id}>
+                    <td className="td-primary">
+                      <div><strong>{sub.student_name || sub.user_profiles?.name || 'Student'}</strong></div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sub.student_email || ''}</div>
+                    </td>
+                    <td>{sub.hostel_name || 'Hostel'}</td>
+                    <td>{sub.room_type || 'Standard'}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--brand-navy)' }}>{fmtCurrency(sub.amount || 0)}</td>
+                    <td><code style={{ fontSize: 12 }}>{sub.reference || sub.id}</code></td>
+                    <td>
+                      <span className="badge badge-amber">📷 Proof Attached</span>
+                    </td>
+                    <td className="td-muted">{fmtDate(sub.created_at)}</td>
+                    <td>
+                      <button className="btn btn-amber btn-sm" onClick={() => setPage('verification')}>
+                        Review Payment
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Financial Overview Grid */}
       <div className="content-grid">
-        <div className="card"><div className="card-header"><span className="card-title">💳 Recent Transactions</span><button className="btn btn-outline btn-sm" onClick={() => setPage('finances')}>View All</button></div>
-          {(finances.transactions || []).length === 0 ? <div className="card-body"><EmptyState icon="💸" title="No transactions" /></div> :
-            <div className="table-wrap"><table><thead><tr><th>Description</th><th>Type</th><th>Amount</th><th>Date</th></tr></thead>
-              <tbody>{(finances.transactions || []).slice(0, 5).map(t => <tr key={t.id}><td className="td-primary">{t.description}</td><td><span className={`badge ${t.type === 'income' ? 'badge-active' : 'badge-rejected'}`}>{t.type}</span></td><td style={{ fontWeight: 700, color: t.type === 'income' ? 'var(--success)' : 'var(--danger)' }}>{t.type === 'income' ? '+' : '-'}{fmtCurrency(t.amount)}</td><td className="td-muted">{fmtDate(t.created_at)}</td></tr>)}</tbody>
-            </table></div>}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">💳 Recent Transactions</span>
+            <button className="btn btn-outline btn-sm" onClick={() => setPage('finances')}>View All</button>
+          </div>
+          {(finances.transactions || []).length === 0 ? (
+            <div className="card-body"><EmptyState icon="💸" title="No transactions" /></div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Description</th><th>Type</th><th>Amount</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                  {(finances.transactions || []).slice(0, 5).map(t => (
+                    <tr key={t.id}>
+                      <td className="td-primary">{t.description}</td>
+                      <td><span className={`badge ${t.type === 'income' ? 'badge-active' : 'badge-rejected'}`}>{t.type}</span></td>
+                      <td style={{ fontWeight: 700, color: t.type === 'income' ? 'var(--success)' : 'var(--danger)' }}>
+                        {t.type === 'income' ? '+' : '-'}{fmtCurrency(t.amount)}
+                      </td>
+                      <td className="td-muted">{fmtDate(t.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-        <div className="card"><div className="card-header"><span className="card-title">📊 Summary</span></div>
+
+        <div className="card">
+          <div className="card-header"><span className="card-title">📊 Financial Summary</span></div>
           <div className="card-body" style={{ display: 'grid', gap: 10 }}>
-            {[['Income', fmtCurrency(totalIncome), 'var(--success)'], ['Expenses', fmtCurrency(totalExpense), 'var(--danger)'], ['Net Profit', fmtCurrency(netProfit), netProfit >= 0 ? 'var(--success)' : 'var(--danger)']].map(([l, v, c]) => (
-              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+            {[
+              ['Income', fmtCurrency(totalIncome), 'var(--success)'],
+              ['Expenses', fmtCurrency(totalExpense), 'var(--danger)'],
+              ['Net Profit', fmtCurrency(netProfit), netProfit >= 0 ? 'var(--success)' : 'var(--danger)']
+            ].map(([l, v, c]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{l}</span>
-                <span style={{ fontWeight: 800, color: c }}>{v}</span>
+                <span style={{ fontWeight: 800, color: c, fontSize: 15 }}>{v}</span>
               </div>
             ))}
           </div>
@@ -2752,34 +3807,91 @@ function AdminPortal({ user, onLogout, toast }) {
 
 function AdminDashboard({ stats, setPage }) {
   if (!stats) return <div className="page-loading"><Spinner dark/></div>;
-  const cards = [
-    {icon:'🏠',color:'indigo',value:stats.totalHostels,  label:'Total Hostels'},
-    {icon:'👥',color:'green', value:stats.totalStudents,  label:'Students'},
-    {icon:'🏢',color:'amber', value:stats.totalManagers,  label:'Managers'},
-    {icon:'🛡️',color:'blue',  value:stats.verifiedHostels,label:'Verified Hostels'},
-    {icon:'⏳',color:'red',   value:stats.pendingManagers,label:'Pending Applications'},
-    {icon:'📋',color:'purple',value:stats.activeBookings, label:'Active Bookings'},
-    {icon:'💳',color:'amber', value:stats.pendingPayments,label:'Payment Queue'},
-    {icon:'🔧',color:'red',   value:stats.maintenanceOpen,label:'Open Maintenance'},
+
+  const summaryCards = [
+    { icon: '🏠', color: 'indigo', value: stats.totalHostels,    label: 'Total Hostels' },
+    { icon: '🛡️', color: 'green',  value: stats.verifiedHostels, label: 'Verified Hostels' },
+    { icon: '⏳', color: 'amber',  value: stats.pendingHostels || 0, label: 'Pending Verification' },
+    { icon: '👥', color: 'blue',   value: stats.totalStudents,   label: 'Total Students' },
+    { icon: '📋', color: 'purple', value: stats.activeBookings,  label: 'Active Bookings' },
   ];
+
   return (
-    <div>
-      <div className="admin-hero">
+    <div style={{ display: 'grid', gap: 24 }}>
+      {/* Admin Welcome Hero */}
+      <div className="admin-hero" style={{ background: 'linear-gradient(135deg, #0F172A, #1E293B)', borderRadius: 'var(--radius-xl)', padding: '28px 32px', color: '#ffffff' }}>
         <div className="admin-hero-text">
-          <div className="admin-hero-label">Administrator</div>
-          <h2 className="admin-hero-title">Platform Overview</h2>
-          <div className="admin-hero-sub">Manage hostels, users, verifications, and platform settings.</div>
+          <div className="admin-hero-label" style={{ color: '#0D9488', fontWeight: 800 }}>UMaT Platform Administration</div>
+          <h2 className="admin-hero-title" style={{ fontSize: 24, fontWeight: 800, margin: '4px 0', color: '#ffffff' }}>Operational Overview</h2>
+          <div className="admin-hero-sub" style={{ color: '#CBD5E1', fontSize: 14 }}>Manage hostels, verification queue, student accounts, and payment workflows.</div>
         </div>
-        <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
-          {stats.pendingManagers>0 && <button className="btn btn-amber" onClick={()=>setPage('applications')}>⚠️ {stats.pendingManagers} Pending Application{stats.pendingManagers!==1?'s':''}</button>}
-          {stats.pendingHostels>0  && <button className="btn btn-ghost"  onClick={()=>setPage('verification')}>🛡️ {stats.pendingHostels} Hostel{stats.pendingHostels!==1?'s':''} to Verify</button>}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {stats.pendingManagers > 0 && <button className="btn btn-amber" onClick={() => setPage('applications')}>⚠️ {stats.pendingManagers} Pending Manager{stats.pendingManagers !== 1 ? 's' : ''}</button>}
+          {stats.pendingHostels > 0  && <button className="btn btn-primary" onClick={() => setPage('verification')}>🛡️ {stats.pendingHostels} Hostel{stats.pendingHostels !== 1 ? 's' : ''} to Verify</button>}
         </div>
       </div>
-      <div className="stats-grid stats-grid-4" style={{marginBottom:24}}>
-        {cards.map((c,i)=><StatCard key={i} icon={c.icon} iconColor={c.color} value={c.value} label={c.label}/>)}
+
+      {/* 5 Primary Summary Cards */}
+      <div className="stats-grid stats-grid-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        {summaryCards.map((c, i) => <StatCard key={i} icon={c.icon} iconColor={c.color} value={c.value} label={c.label} />)}
       </div>
-      {stats.pendingManagers>0 && <div className="alert alert-warning" style={{marginBottom:12}}><span className="alert-icon">👤</span><div><strong>{stats.pendingManagers} manager application{stats.pendingManagers!==1?'s':''} pending.</strong><button className="btn btn-amber btn-sm" style={{marginTop:8,display:'block'}} onClick={()=>setPage('applications')}>Review</button></div></div>}
-      {stats.pendingHostels>0  && <div className="alert alert-info"    style={{marginBottom:12}}><span className="alert-icon">🏠</span><div><strong>{stats.pendingHostels} hostel{stats.pendingHostels!==1?'s':''} awaiting verification.</strong><button className="btn btn-primary btn-sm" style={{marginTop:8,display:'block'}} onClick={()=>setPage('verification')}>Review</button></div></div>}
+
+      {/* Operational Sections */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+        {/* HOSTEL MANAGEMENT SECTION */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title" style={{ fontSize: 15, fontWeight: 800 }}>🏠 HOSTEL MANAGEMENT</span>
+          </div>
+          <div className="card-body" style={{ display: 'grid', gap: 10 }}>
+            <button className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => setPage('hostels')}>
+              <span>All Hostels Directory ({stats.totalHostels})</span>
+              <span>→</span>
+            </button>
+            <button className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => setPage('verification')}>
+              <span>Pending Verification ({stats.pendingHostels || 0})</span>
+              <span className="badge badge-amber">🛡️ Review</span>
+            </button>
+            <button className="btn btn-primary" style={{ marginTop: 4 }} onClick={() => setPage('hostels')}>
+              + Add New Hostel
+            </button>
+          </div>
+        </div>
+
+        {/* USER MANAGEMENT SECTION */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title" style={{ fontSize: 15, fontWeight: 800 }}>👥 USER MANAGEMENT</span>
+          </div>
+          <div className="card-body" style={{ display: 'grid', gap: 10 }}>
+            <button className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => setPage('users')}>
+              <span>Registered Students ({stats.totalStudents})</span>
+              <span>→</span>
+            </button>
+            <button className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => setPage('applications')}>
+              <span>Hostel Managers ({stats.totalManagers})</span>
+              {stats.pendingManagers > 0 && <span className="badge badge-amber">{stats.pendingManagers} Pending</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* BOOKINGS & PAYMENTS SECTION */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title" style={{ fontSize: 15, fontWeight: 800 }}>💳 BOOKINGS & PAYMENTS</span>
+          </div>
+          <div className="card-body" style={{ display: 'grid', gap: 10 }}>
+            <button className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => setPage('audit')}>
+              <span>Active Student Bookings ({stats.activeBookings})</span>
+              <span>→</span>
+            </button>
+            <button className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => setPage('payments')}>
+              <span>Payment Verification ({stats.pendingPayments || 0})</span>
+              <span className="badge badge-info">💳 Overview</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3725,6 +4837,34 @@ function AdminAnalytics({ toast }) {
 
         <div className="card">
           <div className="card-header">
+            <span className="card-title">💰 Financial Commission Ledger & Payouts</span>
+          </div>
+          <div className="card-body" style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)' }}>
+              <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Gross Booking Value</div><div style={{ fontSize: 18, fontWeight: 800 }}>{fmtCurrency(data.totalRevenue || 0)}</div></div>
+              <span style={{ fontSize: 24 }}>💳</span>
+            </div>
+
+            <div className="grid-2" style={{ gap: 10 }}>
+              <div style={{ padding: '12px 14px', background: 'rgba(99,102,241,.06)', border: '1px solid rgba(99,102,241,.2)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-indigo)', textTransform: 'uppercase' }}>Hostel Hub Commission (5%)</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--brand-indigo)', marginTop: 4 }}>{fmtCurrency(Math.round((data.totalRevenue || 0) * 0.05))}</div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'rgba(16,185,129,.06)', border: '1px solid rgba(16,185,129,.2)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase' }}>Manager Net Payouts (95%)</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--success)', marginTop: 4 }}>{fmtCurrency((data.totalRevenue || 0) - Math.round((data.totalRevenue || 0) * 0.05))}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+              <span>Conversion Rate: <strong style={{ color: 'var(--success)' }}>{data.totalBookings > 0 ? `${Math.round(((data.completedBookings || data.totalBookings) / data.totalBookings) * 100)}%` : '0% (Pilot)'}</strong></span>
+              <span>Average Rent: <strong>{data.totalBookings > 0 ? fmtCurrency(Math.round(data.totalRevenue / data.totalBookings)) + '/yr' : 'GHS 0.00'}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
             <span className="card-title">📍 Top Hostel Locations in Tarkwa</span>
           </div>
           <div className="card-body">
@@ -3981,17 +5121,761 @@ function AdminErrorLogs({ toast }) {
 function AdminAuditLog({ toast }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  useEffect(()=>{ apiFetch('/api/admin/audit-log').then(d=>setLogs(d.logs||[])).catch(()=>{}).finally(()=>setLoading(false)); },[]);
-  const actionColor = a => a.includes('delete')||a.includes('reject')?'var(--danger)':a.includes('approve')||a.includes('reinstate')?'var(--success)':'var(--brand-indigo)';
-  return loading ? <div className="page-loading"><Spinner dark/></div> :
-    logs.length===0 ? <EmptyState icon="📋" title="No audit logs yet" sub="Actions will be logged here after running the SQL migration."/> :
-    <div className="card"><div className="table-wrap"><table>
-      <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th></tr></thead>
-      <tbody>{logs.map(l=><tr key={l.id}><td className="td-muted" style={{whiteSpace:'nowrap'}}>{fmtDateTime(l.created_at)}</td><td className="td-primary">{l.admin_name}</td><td><span style={{fontSize:12,fontWeight:700,color:actionColor(l.action),fontFamily:'monospace'}}>{l.action}</span></td><td className="td-muted">{l.entity_type}: {l.entity_name||l.entity_id?.substring(0,8)}</td></tr>)}
-      </tbody>
-    </table></div></div>;
+  const [search, setSearch] = useState('');
+  const [actionFilter, setActionFilter] = useState('all');
+  const [actorFilter, setActorFilter] = useState('all');
+  const [entityFilter, setEntityFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all'); // all, today, yesterday, last7, last30, custom
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [sortField, setSortField] = useState('created_at'); // created_at, admin_name, action, entity_type
+  const [sortOrder, setSortOrder] = useState('desc'); // desc | asc
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [expandedLogId, setExpandedLogId] = useState(null);
+
+  // Load audit logs from API
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.set('limit', 'all'); // fetch full dataset so client can filter smoothly
+      const d = await apiFetch(`/api/admin/audit-log?${queryParams.toString()}`);
+      setLogs(d.logs || []);
+    } catch (e) {
+      if (toast) toast(e.message || 'Failed to load audit logs', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  // Extract unique filter dropdown values from dataset
+  const uniqueActions = useMemo(() => {
+    const set = new Set();
+    logs.forEach(l => { if (l.action) set.add(l.action); });
+    return Array.from(set).sort();
+  }, [logs]);
+
+  const uniqueActors = useMemo(() => {
+    const set = new Set();
+    logs.forEach(l => { if (l.admin_name) set.add(l.admin_name); });
+    return Array.from(set).sort();
+  }, [logs]);
+
+  const uniqueEntities = useMemo(() => {
+    const set = new Set();
+    logs.forEach(l => { if (l.entity_type) set.add(l.entity_type); });
+    return Array.from(set).sort();
+  }, [logs]);
+
+  // Filter & Sort Logic
+  const filteredLogs = useMemo(() => {
+    return logs.filter(l => {
+      // 1. Search Query
+      if (search.trim()) {
+        const q = search.toLowerCase().trim();
+        const detailsStr = typeof l.details === 'object' ? JSON.stringify(l.details).toLowerCase() : (l.details || '').toLowerCase();
+        const matchesSearch =
+          (l.admin_name || '').toLowerCase().includes(q) ||
+          (l.action || '').toLowerCase().includes(q) ||
+          (l.entity_type || '').toLowerCase().includes(q) ||
+          (l.entity_name || '').toLowerCase().includes(q) ||
+          (l.entity_id || '').toLowerCase().includes(q) ||
+          detailsStr.includes(q);
+
+        if (!matchesSearch) return false;
+      }
+
+      // 2. Action Filter
+      if (actionFilter !== 'all' && l.action !== actionFilter) {
+        return false;
+      }
+
+      // 3. Actor Filter
+      if (actorFilter !== 'all' && l.admin_name !== actorFilter) {
+        return false;
+      }
+
+      // 4. Entity Type Filter
+      if (entityFilter !== 'all' && l.entity_type !== entityFilter) {
+        return false;
+      }
+
+      // 5. Date Range Filter
+      if (dateFilter !== 'all' && l.created_at) {
+        const logDate = new Date(l.created_at);
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (dateFilter === 'today') {
+          if (logDate < startOfToday) return false;
+        } else if (dateFilter === 'yesterday') {
+          const startOfYesterday = new Date(startOfToday);
+          startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+          if (logDate < startOfYesterday || logDate >= startOfToday) return false;
+        } else if (dateFilter === 'last7') {
+          const sevenDaysAgo = new Date(startOfToday);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          if (logDate < sevenDaysAgo) return false;
+        } else if (dateFilter === 'last30') {
+          const thirtyDaysAgo = new Date(startOfToday);
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          if (logDate < thirtyDaysAgo) return false;
+        } else if (dateFilter === 'custom') {
+          if (startDate) {
+            const s = new Date(startDate);
+            if (logDate < s) return false;
+          }
+          if (endDate) {
+            const e = new Date(endDate);
+            e.setHours(23, 59, 59, 999);
+            if (logDate > e) return false;
+          }
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      let valA = a[sortField] || '';
+      let valB = b[sortField] || '';
+
+      if (sortField === 'created_at') {
+        valA = new Date(valA).getTime() || 0;
+        valB = new Date(valB).getTime() || 0;
+      } else {
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [logs, search, actionFilter, actorFilter, entityFilter, dateFilter, startDate, endDate, sortField, sortOrder]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, actionFilter, actorFilter, entityFilter, dateFilter, startDate, endDate, pageSize]);
+
+  // Pagination bounds
+  const totalFiltered = filteredLogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = totalFiltered === 0 ? 0 : (validPage - 1) * pageSize + 1;
+  const endIndex = Math.min(validPage * pageSize, totalFiltered);
+  const paginatedLogs = filteredLogs.slice((validPage - 1) * pageSize, validPage * pageSize);
+
+  // Clear all filters handler
+  const isFiltered = search || actionFilter !== 'all' || actorFilter !== 'all' || entityFilter !== 'all' || dateFilter !== 'all' || startDate || endDate;
+  const clearFilters = () => {
+    setSearch('');
+    setActionFilter('all');
+    setActorFilter('all');
+    setEntityFilter('all');
+    setDateFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
+
+  // Sort header click handler
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+  };
+
+  // CSV Export Handler
+  const exportCSV = () => {
+    if (filteredLogs.length === 0) {
+      if (toast) toast('No audit records to export', 'warning');
+      return;
+    }
+    const headers = ['Timestamp', 'Admin Name', 'Action', 'Entity Type', 'Entity Name', 'Entity ID', 'Details'];
+    const rows = filteredLogs.map(l => [
+      l.created_at ? new Date(l.created_at).toISOString() : '',
+      `"${(l.admin_name || '').replace(/"/g, '""')}"`,
+      `"${(l.action || '').replace(/"/g, '""')}"`,
+      `"${(l.entity_type || '').replace(/"/g, '""')}"`,
+      `"${(l.entity_name || '').replace(/"/g, '""')}"`,
+      `"${(l.entity_id || '').replace(/"/g, '""')}"`,
+      `"${JSON.stringify(l.details || {}).replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `hostelhub_audit_log_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (toast) toast(`Exported ${filteredLogs.length} audit records to CSV`, 'success');
+  };
+
+  // Action Chip Formatter
+  const renderActionChip = (action) => {
+    const act = (action || '').toLowerCase();
+    let type = 'amber';
+
+    if (act.includes('delete') || act.includes('reject') || act.includes('suspend')) {
+      type = 'danger';
+    } else if (act.includes('approve') || act.includes('activate') || act.includes('reinstate') || act.includes('verify')) {
+      type = 'success';
+    } else if (act.includes('assign') || act.includes('create') || act.includes('onboard') || act.includes('login')) {
+      type = 'indigo';
+    }
+
+    const readable = (action || 'unknown')
+      .replace(/_/g, ' ')
+      .toUpperCase();
+
+    return (
+      <span className={`action-chip action-chip-${type}`}>
+        <span>{type === 'danger' ? '⛔' : type === 'success' ? '✓' : type === 'indigo' ? '⚡' : '📌'}</span>
+        <span>{readable}</span>
+      </span>
+    );
+  };
+
+  // Entity Badge Formatter
+  const renderEntityBadge = (type, name, id) => {
+    const t = (type || '').toLowerCase();
+    let icon = '📦';
+
+    if (t.includes('hostel')) icon = '🏠';
+    else if (t.includes('manager')) icon = '🏢';
+    else if (t.includes('student') || t.includes('user')) icon = '🎓';
+    else if (t.includes('pay') || t.includes('tx')) icon = '💳';
+    else if (t.includes('book')) icon = '📋';
+    else if (t.includes('maint')) icon = '🔧';
+    else if (t.includes('admin') || t.includes('sys')) icon = '🔑';
+    else if (t.includes('announc')) icon = '📢';
+
+    const entityLabel = type ? (type.charAt(0).toUpperCase() + type.slice(1)) : 'System';
+
+    return (
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-heading)' }}>
+          <span>{icon}</span>
+          <span>{entityLabel}</span>
+        </div>
+        {(name || id) && (
+          <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 2, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {name || (id ? `#${id.substring(0, 10)}` : '')}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Actor Information Renderer
+  const renderActorCell = (adminName) => {
+    const name = adminName || 'System Admin';
+    const initials = getInitials(name);
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="pub-user-avatar" style={{ width: 32, height: 32, fontSize: 11, background: 'linear-gradient(135deg, var(--brand-indigo), var(--brand-navy))', flexShrink: 0 }}>
+          {initials}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text-heading)' }}>{name}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Administrator</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="audit-container">
+      {/* Header Bar */}
+      <div className="audit-header">
+        <div>
+          <h2 className="audit-title">Audit Log</h2>
+          <div className="audit-subtitle">Comprehensive security, administrative, and system action activity records</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button className="btn btn-outline" onClick={fetchLogs} title="Refresh Logs">
+            🔄 Refresh
+          </button>
+          <button className="btn btn-primary" onClick={exportCSV} disabled={filteredLogs.length === 0}>
+            📥 Export CSV ({filteredLogs.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Audit Stats Summary Bar */}
+      <div className="audit-stats-row">
+        <div className="audit-stat-card">
+          <div className="audit-stat-icon" style={{ background: 'hsla(243, 65%, 54%, 0.1)', color: 'var(--brand-indigo)' }}>📋</div>
+          <div>
+            <div className="audit-stat-val">{logs.length}</div>
+            <div className="audit-stat-label">Total Audit Events</div>
+          </div>
+        </div>
+
+        <div className="audit-stat-card">
+          <div className="audit-stat-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>🛡️</div>
+          <div>
+            <div className="audit-stat-val">{uniqueActors.length || 1}</div>
+            <div className="audit-stat-label">Active Administrators</div>
+          </div>
+        </div>
+
+        <div className="audit-stat-card">
+          <div className="audit-stat-icon" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>⚡</div>
+          <div>
+            <div className="audit-stat-val">{uniqueActions.length}</div>
+            <div className="audit-stat-label">Action Types Logged</div>
+          </div>
+        </div>
+
+        <div className="audit-stat-card">
+          <div className="audit-stat-icon" style={{ background: 'hsla(222, 47%, 11%, 0.08)', color: 'var(--text-heading)' }}>🔍</div>
+          <div>
+            <div className="audit-stat-val">{filteredLogs.length}</div>
+            <div className="audit-stat-label">Filtered Results</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search & Filters Controls Bar */}
+      <div className="audit-controls-card">
+        <div className="audit-search-row">
+          <div className="audit-search-input-wrap">
+            <i>🔍</i>
+            <input
+              className="audit-search-input"
+              placeholder="Search audit activity by admin, action, entity, ID, or details..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                style={{ position: 'absolute', right: 12, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                onClick={() => setSearch('')}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {isFiltered && (
+            <button className="btn btn-outline btn-sm" style={{ color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)' }} onClick={clearFilters}>
+              ✕ Clear Filters
+            </button>
+          )}
+        </div>
+
+        <div className="audit-filters-row">
+          {/* Action Filter */}
+          <select className="audit-select-filter" value={actionFilter} onChange={e => setActionFilter(e.target.value)}>
+            <option value="all">⚡ All Actions ({uniqueActions.length})</option>
+            {uniqueActions.map(a => (
+              <option key={a} value={a}>{a.replace(/_/g, ' ').toUpperCase()}</option>
+            ))}
+          </select>
+
+          {/* Actor / Admin Filter */}
+          <select className="audit-select-filter" value={actorFilter} onChange={e => setActorFilter(e.target.value)}>
+            <option value="all">👤 All Administrators</option>
+            {uniqueActors.map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+
+          {/* Entity Type Filter */}
+          <select className="audit-select-filter" value={entityFilter} onChange={e => setEntityFilter(e.target.value)}>
+            <option value="all">📦 All Entity Types</option>
+            {uniqueEntities.map(e => (
+              <option key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</option>
+            ))}
+          </select>
+
+          {/* Date Filter */}
+          <select className="audit-select-filter" value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
+            <option value="all">📅 All Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="last7">Last 7 Days</option>
+            <option value="last30">Last 30 Days</option>
+            <option value="custom">Custom Date Range...</option>
+          </select>
+
+          {/* Custom Date Range Selectors */}
+          {dateFilter === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="date" className="audit-date-input" value={startDate} onChange={e => setStartDate(e.target.value)} title="Start Date" />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>to</span>
+              <input type="date" className="audit-date-input" value={endDate} onChange={e => setEndDate(e.target.value)} title="End Date" />
+            </div>
+          )}
+
+          {/* Page Size Selector */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Rows per page:</span>
+            <select className="audit-select-filter" style={{ minWidth: 70, padding: '6px 10px' }} value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Audit Data Table */}
+      {loading ? (
+        <div className="page-loading"><Spinner dark /></div>
+      ) : filteredLogs.length === 0 ? (
+        <div className="card" style={{ padding: 40, textAlignment: 'center' }}>
+          <EmptyState
+            icon="🔍"
+            title="No audit activity found"
+            sub={isFiltered ? "No records match your active search or filter criteria. Try broadening your query." : "No administrative actions have been recorded yet."}
+          />
+          {isFiltered && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <button className="btn btn-primary btn-sm" onClick={clearFilters}>Clear All Filters</button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th className="th-sortable" onClick={() => handleSort('created_at')}>
+                    TIME {sortField === 'created_at' ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="th-sortable" onClick={() => handleSort('admin_name')}>
+                    ADMINISTRATOR {sortField === 'admin_name' ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="th-sortable" onClick={() => handleSort('action')}>
+                    ACTION {sortField === 'action' ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className="th-sortable" onClick={() => handleSort('entity_type')}>
+                    ENTITY {sortField === 'entity_type' ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th style={{ textAlign: 'right', paddingRight: 24 }}>DETAILS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedLogs.map(l => {
+                  const isExpanded = expandedLogId === l.id;
+
+                  return (
+                    <React.Fragment key={l.id || l.created_at}>
+                      <tr className="audit-row-expandable" onClick={() => setExpandedLogId(isExpanded ? null : l.id)}>
+                        <td className="td-muted" style={{ whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 600 }}>
+                          {fmtDateTime(l.created_at)}
+                        </td>
+                        <td>
+                          {renderActorCell(l.admin_name)}
+                        </td>
+                        <td>
+                          {renderActionChip(l.action)}
+                        </td>
+                        <td>
+                          {renderEntityBadge(l.entity_type, l.entity_name, l.entity_id)}
+                        </td>
+                        <td style={{ textAlign: 'right', paddingRight: 24 }}>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-indigo)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedLogId(isExpanded ? null : l.id);
+                            }}
+                          >
+                            {isExpanded ? 'Hide Details ▲' : 'View Details ▼'}
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Row Drawer */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={5} style={{ padding: 0, borderBottom: '1px solid var(--border)' }}>
+                            <div className="audit-detail-drawer animate-fadeIn">
+                              <div className="audit-detail-grid">
+                                <div className="audit-detail-item">
+                                  <div className="audit-detail-label">Full Timestamp</div>
+                                  <div className="audit-detail-val">{l.created_at ? new Date(l.created_at).toLocaleString() : 'N/A'}</div>
+                                </div>
+                                <div className="audit-detail-item">
+                                  <div className="audit-detail-label">Administrator ID</div>
+                                  <div className="audit-detail-val" style={{ fontFamily: 'monospace' }}>{l.admin_id || 'N/A'}</div>
+                                </div>
+                                <div className="audit-detail-item">
+                                  <div className="audit-detail-label">Action Identifier</div>
+                                  <div className="audit-detail-val" style={{ color: 'var(--brand-indigo)', fontFamily: 'monospace' }}>{l.action || 'N/A'}</div>
+                                </div>
+                                <div className="audit-detail-item">
+                                  <div className="audit-detail-label">Entity Reference ID</div>
+                                  <div className="audit-detail-val" style={{ fontFamily: 'monospace' }}>{l.entity_id || 'N/A'}</div>
+                                </div>
+                              </div>
+
+                              {l.details && Object.keys(l.details).length > 0 && (
+                                <div>
+                                  <div className="audit-detail-label" style={{ marginBottom: 6 }}>Action Metadata & Payload</div>
+                                  <pre className="audit-json-box">
+                                    {JSON.stringify(l.details, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Clean Pagination Control Footer */}
+          <div className="audit-pagination-footer">
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-sub)' }}>
+              Showing <span style={{ color: 'var(--text-heading)', fontWeight: 800 }}>{startIndex}–{endIndex}</span> of <span style={{ color: 'var(--text-heading)', fontWeight: 800 }}>{totalFiltered}</span> records
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                className="audit-page-btn"
+                disabled={validPage <= 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              >
+                ‹ Previous
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - validPage) <= 2)
+                .map((p, idx, arr) => {
+                  const prevP = arr[idx - 1];
+                  const showEllipsis = prevP && p - prevP > 1;
+
+                  return (
+                    <React.Fragment key={p}>
+                      {showEllipsis && <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 4px' }}>...</span>}
+                      <button
+                        className={`audit-page-btn ${validPage === p ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(p)}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+
+              <button
+                className="audit-page-btn"
+                disabled={validPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
+// ─── INTELLIGENT LOCATIONS MANAGEMENT ──────────────────────────────
+function AdminLocations({ toast }) {
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [detailModal, setDetailModal] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [newLoc, setNewLoc] = useState({
+    name: '', category: 'Community', description: '', nearbyLandmark: '',
+    distanceKm: 1.5, lat: 5.2974, lng: -1.9968
+  });
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await apiFetch('/api/locations');
+      setLocations(d.locations || []);
+    } catch (e) {
+      if (toast) toast(e.message || 'Failed to load locations', 'error');
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = locations.filter(l =>
+    !search ||
+    (l.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.nearby_landmark || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.category || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleAddLocation = async e => {
+    e.preventDefault();
+    if (!newLoc.name.trim()) return;
+    setBusy(true);
+    try {
+      await apiFetch('/api/locations', { method: 'POST', body: JSON.stringify(newLoc) });
+      toast(`Location "${newLoc.name}" added!`, 'success');
+      setShowAddModal(false);
+      setNewLoc({ name: '', category: 'Community', description: '', nearbyLandmark: '', distanceKm: 1.5, lat: 5.2974, lng: -1.9968 });
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+    setBusy(false);
+  };
+
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Delete location "${name}"?`)) return;
+    try {
+      await apiFetch(`/api/locations/${id}`, { method: 'DELETE' });
+      toast(`"${name}" deleted.`, 'info');
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
+  const catColor = { Campus: '#6366f1', Community: '#f59e0b', Commercial: '#3b82f6', Residential: '#10b981', Industrial: '#f97316' };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', margin: 0 }}>Locations Management</h2>
+          <div style={{ fontSize: 13, color: 'var(--text-sub)', marginTop: 4 }}>Real UMaT Tarkwa zones — hostel counts calculated live from the database.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div className="pub-filter-search" style={{ minWidth: 220 }}>
+            <span style={{ color: 'var(--text-muted)' }}>🔍</span>
+            <input placeholder="Search locations…" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button className="btn btn-outline btn-sm" onClick={load}>🔄 Refresh</button>
+          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>+ Add Location</button>
+        </div>
+      </div>
+
+      {loading ? <div className="page-loading"><Spinner dark /></div> :
+        filtered.length === 0 ? <EmptyState icon="📍" title="No locations found" sub="Add a location or adjust your search." /> :
+        <div className="location-cards-grid">
+          {filtered.map(loc => {
+            const color = catColor[loc.category] || '#6366f1';
+            const hostelCount = loc.hostel_count || 0;
+            const distKm = loc.distance_km || 0;
+            const walkMins = loc.estimated_walking_mins || Math.round(distKm * 12);
+            return (
+              <div key={loc.id} className="location-card">
+                <div>
+                  <div className="location-card-header">
+                    <div className="location-badge-icon" style={{ background: `${color}18`, color }}>📍</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div className="location-card-title">{loc.name}</div>
+                        <span style={{ fontSize: 11, padding: '2px 10px', background: `${color}18`, color, borderRadius: 20, fontWeight: 700 }}>{loc.category}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="location-card-body">
+                    {loc.nearby_landmark && <div className="location-info-row"><span>🏛️</span><span>{loc.nearby_landmark}</span></div>}
+                    <div className="location-info-row"><span>📏</span><span>{distKm} km from UMaT</span></div>
+                    <div className="location-info-row"><span>🚶</span><span>~{walkMins} min walk</span></div>
+                    <div className="location-info-row">
+                      <span>🏠</span>
+                      <span style={{ fontWeight: hostelCount > 0 ? 700 : 400, color: hostelCount > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                        {hostelCount} hostel{hostelCount !== 1 ? 's' : ''} registered
+                      </span>
+                    </div>
+                    {loc.avg_price_ghs > 0 && <div className="location-info-row"><span>💰</span><span>Avg. {fmtCurrency(loc.avg_price_ghs)}/yr</span></div>}
+                  </div>
+                </div>
+                <div className="location-card-footer">
+                  <button className="btn-location-details" onClick={() => setDetailModal(loc)}>View Details</button>
+                  <button className="btn btn-outline btn-sm" style={{ color: 'var(--danger)', fontSize: 12 }} onClick={() => handleDelete(loc.id, loc.name)}>Delete</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      }
+
+      <div style={{ marginTop: 16, fontSize: 13, color: 'var(--text-muted)', textAlign: 'right' }}>
+        {filtered.length} of {locations.length} locations · Live database data
+      </div>
+
+      {showAddModal && (
+        <Modal open={true} onClose={() => setShowAddModal(false)} title="📍 Add New Location" size="md">
+          <form onSubmit={handleAddLocation} style={{ display: 'grid', gap: 14 }}>
+            <div className="grid-2">
+              <div className="form-group"><label className="form-label">Location Name *</label><input className="form-input" value={newLoc.name} onChange={e => setNewLoc(l => ({ ...l, name: e.target.value }))} placeholder="e.g. Banso" required /></div>
+              <div className="form-group"><label className="form-label">Category</label><select className="form-input form-select" value={newLoc.category} onChange={e => setNewLoc(l => ({ ...l, category: e.target.value }))}>{['Campus', 'Community', 'Commercial', 'Residential', 'Industrial'].map(c => <option key={c}>{c}</option>)}</select></div>
+            </div>
+            <div className="form-group"><label className="form-label">Nearby Landmark</label><input className="form-input" value={newLoc.nearbyLandmark} onChange={e => setNewLoc(l => ({ ...l, nearbyLandmark: e.target.value }))} placeholder="e.g. UMaT Main Gate" /></div>
+            <div className="form-group"><label className="form-label">Description</label><textarea className="form-input form-textarea" rows={2} value={newLoc.description} onChange={e => setNewLoc(l => ({ ...l, description: e.target.value }))} /></div>
+            <div className="grid-2">
+              <div className="form-group"><label className="form-label">Distance from UMaT (km)</label><input className="form-input" type="number" step="0.1" min="0" value={newLoc.distanceKm} onChange={e => setNewLoc(l => ({ ...l, distanceKm: Number(e.target.value) }))} /></div>
+              <div className="form-group"><label className="form-label">GPS: Latitude / Longitude</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input className="form-input" type="number" step="0.0001" value={newLoc.lat} onChange={e => setNewLoc(l => ({ ...l, lat: Number(e.target.value) }))} placeholder="5.2974" />
+                  <input className="form-input" type="number" step="0.0001" value={newLoc.lng} onChange={e => setNewLoc(l => ({ ...l, lng: Number(e.target.value) }))} placeholder="-1.9968" />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? <Spinner /> : 'Add Location'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {detailModal && (
+        <Modal open={true} onClose={() => setDetailModal(null)} title={`📍 ${detailModal.name}`} size="md">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div className="grid-2">
+              {[
+                ['Category', detailModal.category || '—'],
+                ['Distance', `${detailModal.distance_km || '—'} km from UMaT`],
+                ['Walk time', `~${detailModal.estimated_walking_mins || '—'} mins`],
+                ['Drive time', `~${detailModal.estimated_driving_mins || '—'} mins`],
+                ['Transport fare', `GHS ${detailModal.avg_transport_fare_ghs || 0}`],
+                ['Hostels', `${detailModal.hostel_count || 0} registered`],
+              ].map(([l, v]) => (
+                <div key={l} style={{ background: 'var(--bg-subtle)', padding: 12, borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{l}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            {detailModal.nearby_landmark && <div style={{ background: 'var(--bg-subtle)', padding: 12, borderRadius: 10 }}><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>NEARBY LANDMARK</div><div style={{ fontWeight: 700 }}>{detailModal.nearby_landmark}</div></div>}
+            {detailModal.description && <p style={{ fontSize: 13, color: 'var(--text-sub)', lineHeight: 1.7, margin: 0 }}>{detailModal.description}</p>}
+            {detailModal.avg_price_ghs > 0 && <div className="alert alert-info"><span className="alert-icon">💰</span><div>Average hostel price in this area: <strong>{fmtCurrency(detailModal.avg_price_ghs)}/yr</strong></div></div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+              <button className="btn btn-outline btn-sm" style={{ color: 'var(--danger)' }} onClick={() => { handleDelete(detailModal.id, detailModal.name); setDetailModal(null); }}>Delete</button>
+              <button className="btn btn-primary" onClick={() => setDetailModal(null)}>Close</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── DEMO DATA MANAGEMENT ─────────────────────────────────────────────
 // ─── DEMO DATA MANAGEMENT ─────────────────────────────────────────────
 function AdminDemoData({ toast }) {
   const [data, setData] = useState(null);
@@ -4071,91 +5955,215 @@ function AdminDemoData({ toast }) {
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <div className="stats-grid stats-grid-4">
-        <StatCard icon="🏠" iconColor="indigo" value={data.stats.totalHostels} label="Total Hostels" />
-        <StatCard icon="🧪" iconColor="amber" value={data.stats.demoHostels} label="Demo Hostels" />
-        <StatCard icon="👥" iconColor="green" value={data.stats.totalUsers} label="Total User Profiles" />
-        <StatCard icon="🏷️" iconColor="purple" value={data.stats.demoUsers} label="Demo User Profiles" />
-      </div>
-
-      <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+      {/* 4-Column Stat Cards Grid matching HostelHub_Modern_Dashboard.png */}
+      <div className="stats-grid-4">
+        <div className="stat-card-modern">
+          <div className="stat-icon-modern stat-icon-blue">🏠</div>
           <div>
-            <span className="card-title">🧪 Demo Data Lifecycle & Controls</span>
-            <div style={{ fontSize: 13, color: 'var(--text-sub)' }}>Separate presentation/testing records from production user data</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn btn-outline btn-sm" disabled={busy} onClick={archiveDemoHostels}>📦 Hide Demo Hostels</button>
-            <button className="btn btn-outline btn-sm" disabled={busy} onClick={seedDemoData}>{busy ? <Spinner /> : '🌱 Seed Sample Demo Data'}</button>
-            <button className="btn btn-danger btn-sm" disabled={busy} onClick={purgeDemoData}>🗑️ Purge Demo Data</button>
+            <div className="stat-val-modern">{data.stats.totalHostels}</div>
+            <div className="stat-label-modern">Total Hostels</div>
+            <div className="stat-indicator">
+              <span className="stat-indicator-dot dot-blue"></span> Active Hostels
+            </div>
           </div>
         </div>
-        <div className="card-body">
-          <div className="tabs" style={{ marginBottom: 16 }}>
-            <button className={`tab-btn ${tab === 'hostels' ? 'active' : ''}`} onClick={() => setTab('hostels')}>Hostels ({hostels.length})</button>
-            <button className={`tab-btn ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>User Profiles ({userProfiles.length})</button>
-          </div>
 
-          {tab === 'hostels' && (
-            <div className="table-wrap">
-              {hostels.length === 0 ? <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>No hostels in system</div> :
-                <table>
+        <div className="stat-card-modern">
+          <div className="stat-icon-modern stat-icon-green">🧪</div>
+          <div>
+            <div className="stat-val-modern">{data.stats.demoHostels}</div>
+            <div className="stat-label-modern">Demo Hostels</div>
+            <div className="stat-indicator">
+              <span className="stat-indicator-dot dot-green"></span> Sample Data
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card-modern">
+          <div className="stat-icon-modern stat-icon-purple">👥</div>
+          <div>
+            <div className="stat-val-modern">{data.stats.totalUsers}</div>
+            <div className="stat-label-modern">Total User Profiles</div>
+            <div className="stat-indicator">
+              <span className="stat-indicator-dot dot-purple"></span> All Users
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card-modern">
+          <div className="stat-icon-modern stat-icon-amber">🏷️</div>
+          <div>
+            <div className="stat-val-modern">{data.stats.demoUsers}</div>
+            <div className="stat-label-modern">Demo User Profiles</div>
+            <div className="stat-indicator">
+              <span className="stat-indicator-dot dot-amber"></span> Sample Users
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Panel Card */}
+      <div className="modern-panel-card">
+        <div className="panel-card-header">
+          <div className="panel-header-title-group">
+            <div className="panel-header-icon">🛢️</div>
+            <div>
+              <div className="panel-header-title">Demo Data Lifecycle & Controls</div>
+              <div className="panel-header-sub">Separate presentation/testing records from production user data</div>
+            </div>
+          </div>
+          <div className="panel-actions-group">
+            <button className="btn-action-outline-blue" disabled={busy} onClick={archiveDemoHostels}>
+              <span>👁️</span> Hide Demo Hostels
+            </button>
+            <button className="btn-action-outline-green" disabled={busy} onClick={seedDemoData}>
+              {busy ? <Spinner /> : <><span>🌱</span> Seed Sample Demo Data</>}
+            </button>
+            <button className="btn-action-danger-solid" disabled={busy} onClick={purgeDemoData}>
+              <span>🗑️</span> Purge Demo Data
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-Tabs */}
+        <div className="modern-sub-tabs">
+          <div className={`modern-tab-item ${tab === 'hostels' ? 'active' : ''}`} onClick={() => setTab('hostels')}>
+            Hostels ({hostels.length})
+          </div>
+          <div className={`modern-tab-item ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>
+            User Profiles ({userProfiles.length})
+          </div>
+        </div>
+
+        {tab === 'hostels' && (
+          <div>
+            <div className="modern-table-wrap">
+              {hostels.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No hostels in system</div> :
+                <table className="modern-table">
                   <thead>
-                    <tr><th>Hostel Name</th><th>Location</th><th>Visibility</th><th>Demo Flag</th><th>Action</th></tr>
+                    <tr>
+                      <th>HOSTEL NAME ↕</th>
+                      <th>LOCATION ↕</th>
+                      <th>VISIBILITY ↕</th>
+                      <th>DEMO FLAG ↕</th>
+                      <th>ACTION</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {hostels.map(h => (
                       <tr key={h.id}>
-                        <td className="td-primary">{h.name}</td>
-                        <td className="td-muted">{h.location}</td>
-                        <td><span className={`badge ${h.is_published ? 'badge-active' : 'badge-suspended'}`}>{h.is_published ? 'Public' : 'Hidden'}</span></td>
                         <td>
-                          <span className={`badge ${h.is_demo ? 'badge-pending' : 'badge-verified'}`}>
-                            {h.is_demo ? '🧪 Demo Data' : '🏢 Production'}
+                          <div className="table-name-cell">
+                            <div className={`table-icon-badge ${h.name.includes('Tarkwa') ? 'amber' : h.name.includes('SME') ? 'purple' : 'blue'}`}>
+                              🏢
+                            </div>
+                            <span>{h.name}</span>
+                          </div>
+                        </td>
+                        <td><span style={{ color: '#64748b' }}>📍 {h.location}</span></td>
+                        <td>
+                          <span className={h.is_published ? 'badge-pill-green' : 'badge-pill-amber'}>
+                            {h.is_published ? '🌐 Public' : '👓 Hidden'}
                           </span>
                         </td>
                         <td>
-                          <button className="btn btn-outline btn-sm" onClick={() => toggleFlag('hostels', h.id, h.is_demo)}>
-                            {h.is_demo ? 'Mark Production' : 'Mark Demo'}
+                          <span className={h.is_demo ? 'badge-pill-amber' : 'badge-pill-green'}>
+                            🏢 {h.is_demo ? 'Demo Data' : 'Production'}
+                          </span>
+                        </td>
+                        <td>
+                          <button className="table-action-btn" onClick={() => toggleFlag('hostels', h.id, h.is_demo)}>
+                            <span>{h.is_demo ? 'Mark Production' : 'Mark Demo'}</span>
+                            <span style={{ fontSize: 11 }}>↗</span>
                           </button>
+                          <button className="table-more-btn" title="Options">⋮</button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>}
             </div>
-          )}
 
-          {tab === 'users' && (
-            <div className="table-wrap">
-              {userProfiles.length === 0 ? <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>No user profiles found</div> :
-                <table>
+            {/* Pagination Footer */}
+            <div className="table-pagination-footer">
+              <div>Showing 1 to {hostels.length} of {hostels.length} hostels</div>
+              <div className="pagination-controls">
+                <button className="page-btn" disabled>‹</button>
+                <button className="page-btn active">1</button>
+                <button className="page-btn" disabled>›</button>
+                <select className="page-select">
+                  <option>10 / page</option>
+                  <option>25 / page</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'users' && (
+          <div>
+            <div className="modern-table-wrap">
+              {userProfiles.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No user profiles found</div> :
+                <table className="modern-table">
                   <thead>
-                    <tr><th>Name</th><th>Email</th><th>Role</th><th>Demo Flag</th><th>Action</th></tr>
+                    <tr>
+                      <th>NAME ↕</th>
+                      <th>EMAIL ↕</th>
+                      <th>ROLE ↕</th>
+                      <th>DEMO FLAG ↕</th>
+                      <th>ACTION</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {userProfiles.map(u => (
                       <tr key={u.id}>
-                        <td className="td-primary">{u.name}</td>
-                        <td className="td-muted">{u.email}</td>
-                        <td><span className="badge badge-info">{u.role}</span></td>
                         <td>
-                          <span className={`badge ${u.is_demo ? 'badge-pending' : 'badge-verified'}`}>
-                            {u.is_demo ? '🧪 Demo Data' : '👤 Production'}
+                          <div className="table-name-cell">
+                            <div className="table-icon-badge purple">
+                              👤
+                            </div>
+                            <span>{u.name}</span>
+                          </div>
+                        </td>
+                        <td><span style={{ color: '#64748b' }}>{u.email}</span></td>
+                        <td>
+                          <span className="badge-pill-green" style={{ background: '#e0e7ff', color: '#4338ca' }}>
+                            {u.role}
                           </span>
                         </td>
                         <td>
-                          <button className="btn btn-outline btn-sm" onClick={() => toggleFlag('user_profiles', u.id, u.is_demo)}>
-                            {u.is_demo ? 'Mark Production' : 'Mark Demo'}
+                          <span className={u.is_demo ? 'badge-pill-amber' : 'badge-pill-green'}>
+                            👤 {u.is_demo ? 'Demo User' : 'Production'}
+                          </span>
+                        </td>
+                        <td>
+                          <button className="table-action-btn" onClick={() => toggleFlag('user_profiles', u.id, u.is_demo)}>
+                            <span>{u.is_demo ? 'Mark Production' : 'Mark Demo'}</span>
+                            <span style={{ fontSize: 11 }}>↗</span>
                           </button>
+                          <button className="table-more-btn" title="Options">⋮</button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>}
             </div>
-          )}
-        </div>
+
+            {/* Pagination Footer */}
+            <div className="table-pagination-footer">
+              <div>Showing 1 to {userProfiles.length} of {userProfiles.length} user profiles</div>
+              <div className="pagination-controls">
+                <button className="page-btn" disabled>‹</button>
+                <button className="page-btn active">1</button>
+                <button className="page-btn" disabled>›</button>
+                <select className="page-select">
+                  <option>10 / page</option>
+                  <option>25 / page</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -122,9 +122,95 @@ router.post('/signup', asyncHandler(async (req, res) => {
 }));
 
 // ─────────────────────────────────────────────
-// MANAGER APPLICATION — Removed for Security
-// Managers can only be onboarded by Administrators
+// MANAGER APPLICATION (Sign up as prospective manager)
+// Status set to pending until approved by Admin
 // ─────────────────────────────────────────────
+router.post('/manager-apply', asyncHandler(async (req, res) => {
+  const {
+    name, email, phone, password,
+    hostelNameApplied, hostelLocationApplied, hostelDescriptionApplied,
+    numRoomsApplied, capacityApplied, applicationNotes
+  } = req.body;
+
+  if (!name || !email || !password) {
+    return error(res, 'Name, email, and password are required', 400);
+  }
+  if (!phone) return error(res, 'Phone number is required', 400);
+
+  const emailLower = String(email).trim().toLowerCase();
+
+  // Create auth user
+  const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+    email: emailLower,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      role: 'manager',
+      status: 'pending',
+    }
+  });
+
+  if (authErr) {
+    if (authErr.message?.includes('already registered') || authErr.message?.includes('already been registered')) {
+      return error(res, 'An account with this email already exists', 409);
+    }
+    throw authErr;
+  }
+
+  const authUser = authData.user;
+
+  // Set role in app_metadata
+  await supabase.auth.admin.updateUserById(authUser.id, {
+    app_metadata: { role: 'manager', status: 'pending' }
+  });
+
+  // Create user_profile row
+  await supabase.from('user_profiles').insert({
+    id: authUser.id, email: emailLower,
+    name: String(name).trim(), role: 'manager', status: 'pending',
+    phone: String(phone).trim(),
+  });
+
+  // Create manager_profile row
+  await supabase.from('manager_profiles').insert({
+    id: authUser.id,
+    phone: String(phone).trim(),
+    hostel_name_applied: String(hostelNameApplied || '').trim(),
+    hostel_location_applied: String(hostelLocationApplied || '').trim(),
+    hostel_description_applied: String(hostelDescriptionApplied || '').trim(),
+    num_rooms_applied: Number(numRoomsApplied) || 0,
+    capacity_applied: Number(capacityApplied) || 0,
+    application_notes: String(applicationNotes || '').trim(),
+    is_verified: false,
+  });
+
+  // Sign in to get session tokens
+  const { data: session, error: signInErr } = await supabaseAnon.auth.signInWithPassword({
+    email: emailLower, password
+  });
+
+  if (signInErr) {
+    return res.status(201).json({
+      message: 'Application submitted successfully. Awaiting administrator review.',
+      user: { id: authUser.id, email: emailLower, role: 'manager', status: 'pending', name: String(name).trim() }
+    });
+  }
+
+  return res.status(201).json({
+    token: session.session.access_token,
+    refresh_token: session.session.refresh_token,
+    user: {
+      id: authUser.id,
+      email: emailLower,
+      name: String(name).trim(),
+      role: 'manager',
+      status: 'pending',
+    },
+    message: 'Application submitted successfully'
+  });
+}));
 
 
 // ─────────────────────────────────────────────
@@ -327,36 +413,8 @@ router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
   return res.json({ user: responseUser });
 }));
 
-// ─────────────────────────────────────────────
-// UPDATE STUDENT PROFILE
-// ─────────────────────────────────────────────
-router.put('/student/profile', authenticateToken, asyncHandler(async (req, res) => {
-  if (req.user.role !== 'student') return error(res, 'Student access only', 403);
 
-  const { name, phone, emergencyContact, level, programme, preferredRoomType, profilePhoto } = req.body;
 
-  const upUpdates = {};
-  if (name) upUpdates.name = String(name).trim();
-  if (phone) upUpdates.phone = String(phone).trim();
-  if (profilePhoto) upUpdates.avatar_url = String(profilePhoto).trim();
-
-  if (Object.keys(upUpdates).length > 0) {
-    try { await supabase.from('user_profiles').update(upUpdates).eq('id', req.user.sub); } catch {}
-  }
-
-  const spUpdates = {};
-  if (emergencyContact) spUpdates.emergency_contact = String(emergencyContact).trim();
-  if (level)            spUpdates.level = String(level).trim();
-  if (programme)        spUpdates.programme = String(programme).trim();
-  if (preferredRoomType) spUpdates.preferred_room_type = String(preferredRoomType).trim();
-  if (profilePhoto)     spUpdates.profile_photo = String(profilePhoto).trim();
-
-  if (Object.keys(spUpdates).length > 0) {
-    try { await supabase.from('student_profiles').update(spUpdates).eq('id', req.user.sub); } catch {}
-  }
-
-  return res.json({ message: 'Profile updated successfully' });
-}));
 
 // ─────────────────────────────────────────────
 // AI HOSTEL RECOMMENDATIONS FOR STUDENT
@@ -435,7 +493,9 @@ router.post('/oauth/google', asyncHandler(async (req, res) => {
 router.get('/student/portal', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'student') return error(res, 'Student access only', 403);
   const userId = req.user.sub;
-  const isMissing = e => e && (e.message?.includes('schema cache') || e.message?.includes('not found') || e.code === '42P01' || e.message?.includes('does not exist'));
+  const isMissing = e => e && (e.message?.includes('schema cache') || e.message?.includes('not found') || e.code === '42P01' || e.code === 'PGRST205' || e.message?.includes('does not exist'));
+  const { getStore } = require('../utils/localStore');
+  const store = getStore();
 
   // Try new tables; fall back to empty objects if not yet created
   let sp = null, up = null;
@@ -461,13 +521,18 @@ router.get('/student/portal', authenticateToken, asyncHandler(async (req, res) =
     supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(10),
   ]);
 
+  const payments = (!payRes.error && payRes.data?.length) ? payRes.data : store.payments.filter(p => p.student_id === userId);
+  const paymentSubmissions = (!subRes.error && subRes.data?.length) ? subRes.data : store.payment_submissions.filter(s => s.student_id === userId);
+  const receipts = (!recRes.error && recRes.data?.length) ? recRes.data : store.receipts.filter(r => r.student_id === userId);
+  const notifications = (!notifRes.error && notifRes.data?.length) ? notifRes.data : store.notifications.filter(n => n.student_id === userId || !n.student_id);
+
   return res.json({
     student,
     maintenance:        isMissing(maintRes.error) ? [] : (maintRes.data || []),
-    payments:           isMissing(payRes.error)   ? [] : (payRes.data   || []),
-    paymentSubmissions: isMissing(subRes.error)   ? [] : (subRes.data   || []),
-    receipts:           isMissing(recRes.error)   ? [] : (recRes.data   || []),
-    notifications:      isMissing(notifRes.error) ? [] : (notifRes.data || []),
+    payments,
+    paymentSubmissions,
+    receipts,
+    notifications,
     documents:          isMissing(docRes.error)   ? [] : (docRes.data   || []),
     announcements:      isMissing(annRes.error)   ? [] : (annRes.data   || []),
     agreements:         [],

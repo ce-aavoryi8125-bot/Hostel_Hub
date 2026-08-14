@@ -620,16 +620,71 @@ router.delete('/announcements/:id', authenticateToken, requireAdmin, asyncHandle
 
 // ─── AUDIT LOG ───────────────────────────────────────────────────────────
 router.get('/audit-log', authenticateToken, requireAdmin, asyncHandler(async (req, res) => {
-  const { data: logs, error: dbErr } = await supabase
-    .from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(200);
-  // PGRST116 = table not found in schema cache; 42P01 = undefined_table
+  const {
+    page, limit, search, action, actor, entity_type,
+    date_range, start_date, end_date, sort_order = 'desc'
+  } = req.query;
+
+  let query = supabase.from('admin_audit_log').select('*', { count: 'exact' });
+
+  // Optional server-side filters
+  if (action && action !== 'all') {
+    query = query.eq('action', action);
+  }
+  if (actor && actor !== 'all') {
+    query = query.eq('admin_name', actor);
+  }
+  if (entity_type && entity_type !== 'all') {
+    query = query.eq('entity_type', entity_type);
+  }
+  if (search && search.trim()) {
+    const s = `%${search.trim()}%`;
+    query = query.or(`admin_name.ilike.${s},action.ilike.${s},entity_type.ilike.${s},entity_name.ilike.${s},entity_id.ilike.${s}`);
+  }
+  if (start_date) {
+    query = query.gte('created_at', new Date(start_date).toISOString());
+  }
+  if (end_date) {
+    const eDate = new Date(end_date);
+    eDate.setHours(23, 59, 59, 999);
+    query = query.lte('created_at', eDate.toISOString());
+  }
+
+  // Sorting
+  const isAsc = String(sort_order).toLowerCase() === 'asc';
+  query = query.order('created_at', { ascending: isAsc });
+
+  // If page & limit specified, apply pagination
+  if (limit && limit !== 'all') {
+    const lim = Math.max(1, parseInt(limit, 10) || 20);
+    const p = Math.max(1, parseInt(page, 10) || 1);
+    const from = (p - 1) * lim;
+    const to = from + lim - 1;
+    query = query.range(from, to);
+  } else if (!page && !search && !action && !actor && !entity_type && !start_date && !end_date) {
+    // Default limit if no filters passed, keep backward compatibility
+    query = query.limit(500);
+  }
+
+  const { data: logs, count, error: dbErr } = await query;
+
   if (dbErr) {
     if (dbErr.code === '42P01' || dbErr.message?.includes('schema cache') || dbErr.message?.includes('not found')) {
-      return res.json({ logs: [], note: 'Run MIGRATION_REQUIRED.sql in Supabase to enable audit logging.' });
+      return res.json({ logs: [], total: 0, note: 'Run MIGRATION_REQUIRED.sql in Supabase to enable audit logging.' });
     }
     throw dbErr;
   }
-  return res.json({ logs: logs || [] });
+
+  const resultLogs = logs || [];
+  const totalRecords = count !== null && count !== undefined ? count : resultLogs.length;
+
+  return res.json({
+    logs: resultLogs,
+    total: totalRecords,
+    page: page ? parseInt(page, 10) : 1,
+    limit: limit ? (limit === 'all' ? totalRecords : parseInt(limit, 10)) : resultLogs.length,
+    totalPages: limit && limit !== 'all' ? Math.ceil(totalRecords / parseInt(limit, 10)) : 1
+  });
 }));
 
 // ─── VERIFICATION LOG ────────────────────────────────────────────────────

@@ -7,7 +7,8 @@
 const http = require('http');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-const BASE = 'http://localhost:3000';
+const PORT = process.env.PORT || 3001;
+const BASE = `http://localhost:${PORT}`;
 let pass = 0, fail = 0;
 const failures = [];
 
@@ -15,7 +16,7 @@ function req(method, path, body, token) {
   return new Promise((resolve) => {
     const payload = body ? JSON.stringify(body) : null;
     const options = {
-      hostname: 'localhost', port: 3000, path, method,
+      hostname: 'localhost', port: PORT, path, method,
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

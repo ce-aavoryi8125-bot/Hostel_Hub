@@ -25,6 +25,11 @@ async function authenticateToken(req, res, next) {
       name:   meta.name     || meta.full_name || u.email,
       status: appMeta.status || meta.status || 'active',
     };
+
+    if (req.user.status === 'suspended' || req.user.status === 'disabled') {
+      return error(res, 'Your account has been suspended or disabled by platform administrators.', 403);
+    }
+
     next();
   } catch (err) {
     return error(res, 'Token verification failed', 401);
