@@ -31,7 +31,8 @@ $rooms = $roomsStmt->fetchAll();
 
 $page_title = $hostel['name'];
 $photos = array_filter(array_map('trim', explode(',', $hostel['photos'])));
-$mainPhoto = !empty($photos) ? $photos[0] : 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80';
+$mainPhoto = !empty($photos) ? $photos[0] : 'assets/images/hostels/hostel-1a.jpg';
+if (strpos($mainPhoto, 'http') !== 0) { $mainPhoto = BASE_URL . ltrim($mainPhoto, '/'); }
 $facilities = array_filter(array_map('trim', explode(',', $hostel['facilities'])));
 ?>
 
@@ -76,8 +77,10 @@ $facilities = array_filter(array_map('trim', explode(',', $hostel['facilities'])
           
           <?php if (count($photos) > 1): ?>
             <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px;">
-              <?php foreach ($photos as $p): ?>
-                <img src="<?= sanitize($p) ?>" onclick="document.getElementById('activeGalleryImage').src=this.src" style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #E2E8F0; transition: border-color 0.2s;" onmouseover="this.style.borderColor='#0F766E'" onmouseout="this.style.borderColor='#E2E8F0'">
+              <?php foreach ($photos as $p): 
+                $pUrl = (strpos($p, 'http') === 0) ? $p : BASE_URL . ltrim($p, '/');
+              ?>
+                <img src="<?= sanitize($pUrl) ?>" onclick="document.getElementById('activeGalleryImage').src=this.src" style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #E2E8F0; transition: border-color 0.2s;" onmouseover="this.style.borderColor='#0F766E'" onmouseout="this.style.borderColor='#E2E8F0'">
               <?php endforeach; ?>
             </div>
           <?php endif; ?>
