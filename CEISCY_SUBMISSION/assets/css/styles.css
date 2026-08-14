@@ -122,18 +122,14 @@ html[data-theme="dark"] {
 
   --text:          #F8FAFC;
   --text-heading:  #F8FAFC;
-  --text-sub:      #94A3B8;
-  --text-muted:    #64748B;
+  --text-sub:      hsl(215, 20%, 75%);
+  --text-muted:    hsl(215, 15%, 60%);
   --text-white:    #FFFFFF;
 
   --success:       #10B981;
   --success-bg:    #064E3B;
   --warning:       #F59E0B;
   --danger:        #EF4444;
-}
-  --text-sub:      hsl(215, 20%, 75%);
-  --text-muted:    hsl(215, 15%, 60%);
-  --text-white:    #ffffff;
 
   --nav-bg:        rgba(15, 23, 42, 0.94);
   --nav-text:      #ffffff;
@@ -5938,6 +5934,160 @@ html[data-theme="dark"] .pub-ref-details-btn:hover {
     font-size: 13px;
   }
 }
+
+/* ================================================================
+   HOSTEL HUB — APP FOOTER & FLASH TOAST STYLES
+   ================================================================ */
+.app-footer {
+  background: #0F172A;
+  color: #94A3B8;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 50px 0 0;
+  margin-top: auto;
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 40px;
+}
+
+.footer-col.brand-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footer-desc {
+  font-size: 14px;
+  color: #94A3B8;
+  line-height: 1.6;
+  max-width: 380px;
+}
+
+.footer-heading {
+  font-size: 14px;
+  font-weight: 800;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+}
+
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-links a {
+  color: #94A3B8;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+  color: #2DD4BF;
+}
+
+.footer-bottom {
+  background: #0B1120;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 0;
+}
+
+.footer-bottom-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: #64748B;
+}
+
+.footer-tagline {
+  color: #2DD4BF;
+  font-weight: 700;
+}
+
+/* FLASH TOAST NOTIFICATIONS */
+.flash-container {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+}
+
+.flash-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: #1E293B;
+  border: 1px solid #334155;
+}
+
+.flash-toast.flash-success {
+  background: #064E3B;
+  border-color: #059669;
+  color: #A7F3D0;
+}
+
+.flash-toast.flash-error {
+  background: #7F1D1D;
+  border-color: #DC2626;
+  color: #FCA5A5;
+}
+
+.flash-toast.flash-info {
+  background: #0F766E;
+  border-color: #0D9488;
+  color: #CCFBF1;
+}
+
+.flash-close {
+  background: transparent;
+  border: none;
+  color: currentColor;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.flash-close:hover {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}
+
 
 
 
