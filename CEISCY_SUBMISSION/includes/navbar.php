@@ -11,7 +11,7 @@ $unread = $student ? get_unread_notifications_count($student['id']) : 0;
 $activePage = $active_page ?? 'home';
 ?>
 <header class="app-header">
-  <div class="header-inner">
+  <div class="header-inner container">
     <!-- Brand Logo -->
     <a href="<?= BASE_URL ?>index.php" class="brand">
       <div class="brand-icon">🏠</div>
@@ -23,12 +23,18 @@ $activePage = $active_page ?? 'home';
 
     <!-- Navigation Links -->
     <nav class="nav-links">
-      <a href="<?= BASE_URL ?>index.php" class="nav-link <?= $activePage === 'home' ? 'active' : '' ?>">Home</a>
-      <a href="<?= BASE_URL ?>hostels.php" class="nav-link <?= $activePage === 'hostels' ? 'active' : '' ?>">Browse Hostels</a>
+      <a href="<?= BASE_URL ?>index.php" class="nav-link <?= $activePage === 'home' ? 'active' : '' ?>">
+        <span>Home</span>
+      </a>
+      <a href="<?= BASE_URL ?>hostels.php" class="nav-link <?= $activePage === 'hostels' ? 'active' : '' ?>">
+        <span>Browse Hostels</span>
+      </a>
       <?php if ($student): ?>
-        <a href="<?= BASE_URL ?>bookings.php" class="nav-link <?= $activePage === 'bookings' ? 'active' : '' ?>">My Bookings</a>
+        <a href="<?= BASE_URL ?>bookings.php" class="nav-link <?= $activePage === 'bookings' ? 'active' : '' ?>">
+          <span>My Bookings</span>
+        </a>
         <a href="<?= BASE_URL ?>notifications.php" class="nav-link <?= $activePage === 'notifications' ? 'active' : '' ?>">
-          Notifications
+          <span>Notifications</span>
           <?php if ($unread > 0): ?>
             <span class="nav-badge"><?= $unread ?></span>
           <?php endif; ?>
@@ -40,11 +46,11 @@ $activePage = $active_page ?? 'home';
     <div class="header-actions">
       <?php if ($student): ?>
         <div class="user-menu">
-          <a href="<?= BASE_URL ?>profile.php" class="user-pill" title="View Profile">
+          <a href="<?= BASE_URL ?>profile.php" class="user-pill" title="View Student Profile">
             <span class="user-avatar">🎓</span>
             <span class="user-name"><?= sanitize($student['name']) ?></span>
           </a>
-          <a href="<?= BASE_URL ?>logout.php" class="btn btn-outline btn-sm">Sign Out</a>
+          <a href="<?= BASE_URL ?>logout.php" class="btn btn-outline btn-sm btn-logout">Sign Out</a>
         </div>
       <?php else: ?>
         <a href="<?= BASE_URL ?>login.php" class="btn btn-ghost">Sign In</a>

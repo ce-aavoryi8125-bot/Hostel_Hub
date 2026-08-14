@@ -23,15 +23,15 @@ $flashes = get_flashes();
   <footer class="app-footer">
     <div class="footer-inner container">
       <div class="footer-col brand-col">
-        <div class="brand">
+        <a href="<?= BASE_URL ?>index.php" class="brand" style="display: inline-flex;">
           <div class="brand-icon">🏠</div>
           <div class="brand-text">
             <span class="brand-title">Hostel<span class="brand-accent">Hub</span></span>
             <span class="brand-subtitle">UMaT Tarkwa</span>
           </div>
-        </div>
+        </a>
         <p class="footer-desc">
-          Official student accommodation and hostel booking platform for University of Mines and Technology students in Tarkwa, Ghana.
+          Official student accommodation discovery and room reservation platform for University of Mines and Technology (UMaT) students in Tarkwa, Ghana.
         </p>
       </div>
 
@@ -53,10 +53,11 @@ $flashes = get_flashes();
         </ul>
       </div>
     </div>
+
     <div class="footer-bottom">
       <div class="container footer-bottom-inner">
         <p>© <?= date('Y') ?> Hostel Hub UMaT Tarkwa. All rights reserved.</p>
-        <p class="footer-tagline">100% Physically Verified Student Hostels</p>
+        <p class="footer-tagline">100% Physically Verified Student Hostels • Zero Agent Fees</p>
       </div>
     </div>
   </footer>
