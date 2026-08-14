@@ -8,6 +8,9 @@ require_once __DIR__ . '/functions.php';
 
 $pageTitle = isset($page_title) ? $page_title . ' | ' . APP_NAME : APP_NAME . ' — Student Accommodation Tarkwa';
 $unreadCount = is_logged_in() ? get_unread_notifications_count($_SESSION['student_id']) : 0;
+
+$cssFilePath = __DIR__ . '/../assets/css/styles.css';
+$cssVersion  = file_exists($cssFilePath) ? filemtime($cssFilePath) : time();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,6 +22,6 @@ $unreadCount = is_logged_in() ? get_unread_notifications_count($_SESSION['studen
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/styles.css">
+  <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/styles.css?v=<?= $cssVersion ?>">
 </head>
 <body data-base-url="<?= BASE_URL ?>">

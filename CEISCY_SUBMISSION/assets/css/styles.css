@@ -158,6 +158,318 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 a { text-decoration: none; color: inherit; }
 img { max-width: 100%; display: block; }
 
+/* ================================================================
+   HOSTEL HUB — PREMIUM APP HEADER & NAVBAR STYLES
+   ================================================================ */
+.app-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+  background: #0F172A !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.25) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.header-inner {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 24px !important;
+  height: 70px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+}
+
+.brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  text-decoration: none !important;
+  transition: transform 0.2s ease !important;
+}
+
+.brand:hover {
+  transform: translateY(-1px) !important;
+}
+
+.brand-icon {
+  width: 40px !important;
+  height: 40px !important;
+  background: linear-gradient(135deg, #0F766E, #0D9488) !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 20px !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35) !important;
+  flex-shrink: 0 !important;
+}
+
+.brand-text {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.brand-title {
+  font-size: 20px !important;
+  font-weight: 900 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  color: #FFFFFF !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.1 !important;
+}
+
+.brand-accent {
+  color: #2DD4BF !important;
+}
+
+.brand-subtitle {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #94A3B8 !important;
+  margin-top: 2px !important;
+}
+
+.nav-links {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.nav-link {
+  padding: 8px 16px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #CBD5E1 !important;
+  text-decoration: none !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
+}
+
+.nav-link:hover {
+  color: #2DD4BF !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.nav-link.active {
+  color: #FFFFFF !important;
+  background: rgba(15, 118, 110, 0.3) !important;
+  border: 1px solid rgba(45, 212, 191, 0.3) !important;
+}
+
+.nav-badge {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  padding: 2px 8px !important;
+  border-radius: 9999px !important;
+  line-height: 1 !important;
+  margin-left: 4px !important;
+  display: inline-block !important;
+}
+
+.header-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.user-menu {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.user-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 14px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 9999px !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.user-pill:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: #2DD4BF !important;
+}
+
+.user-avatar {
+  font-size: 16px !important;
+}
+
+.user-name {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+}
+
+.btn-logout {
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #CBD5E1 !important;
+  background: transparent !important;
+  padding: 7px 14px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-logout:hover {
+  border-color: #EF4444 !important;
+  color: #EF4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.header-actions .btn-ghost {
+  color: #CBD5E1 !important;
+  padding: 8px 16px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.header-actions .btn-ghost:hover {
+  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.header-actions .btn-primary {
+  background: linear-gradient(135deg, #0F766E, #0D9488) !important;
+  color: #FFFFFF !important;
+  padding: 9px 18px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  text-decoration: none !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.3) !important;
+  transition: all 0.2s ease !important;
+  border: none !important;
+}
+
+.header-actions .btn-primary:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(15, 118, 110, 0.45) !important;
+}
+
+/* ================================================================
+   HOSTEL HUB — PREMIUM APP FOOTER & FLASH TOAST STYLES
+   ================================================================ */
+.app-footer {
+  background: #0F172A !important;
+  color: #94A3B8 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 50px 0 0 !important;
+  margin-top: 60px !important;
+}
+
+.footer-inner {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 24px 40px !important;
+  display: grid !important;
+  grid-template-columns: 2fr 1fr 1fr !important;
+  gap: 48px !important;
+}
+
+.footer-col.brand-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+.footer-desc {
+  font-size: 14px !important;
+  color: #94A3B8 !important;
+  line-height: 1.6 !important;
+  max-width: 380px !important;
+  margin: 0 !important;
+}
+
+.footer-heading {
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #FFFFFF !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin: 0 0 16px 0 !important;
+}
+
+.footer-links {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.footer-links li {
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style-type: none !important;
+}
+
+.footer-links a {
+  color: #94A3B8 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease !important;
+}
+
+.footer-links a:hover {
+  color: #2DD4BF !important;
+}
+
+.footer-bottom {
+  background: #0B1120 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  padding: 20px 0 !important;
+}
+
+.footer-bottom-inner {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 24px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  font-size: 13px !important;
+  color: #64748B !important;
+}
+
+.footer-bottom-inner p {
+  margin: 0 !important;
+}
+
+.footer-tagline {
+  color: #2DD4BF !important;
+  font-weight: 700 !important;
+}
+
 /* ── KEYFRAME ANIMATIONS ────────────────────────────────────── */
 @keyframes fadeIn       { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeInUp     { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
