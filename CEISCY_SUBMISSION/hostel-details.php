@@ -71,7 +71,7 @@ $facilities = array_filter(array_map('trim', explode(',', $hostel['facilities'])
         <!-- Photo Gallery Header -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 16px; margin-bottom: 32px; box-shadow: 0 4px 12px rgba(15,23,42,0.05);">
           <div style="height: 380px; border-radius: 12px; overflow: hidden; background: #CBD5E1; margin-bottom: 12px;">
-            <img src="<?= sanitize($mainPhoto) ?>" id="activeGalleryImage" alt="<?= sanitize($hostel['name']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+            <img src="<?= sanitize($mainPhoto) ?>" id="activeGalleryImage" alt="<?= sanitize($hostel['name']) ?>" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80';">
           </div>
           
           <?php if (count($photos) > 1): ?>
