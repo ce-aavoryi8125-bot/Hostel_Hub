@@ -5714,4 +5714,230 @@ html[data-theme="dark"] .pub-ref-details-btn:hover {
   color: #ffffff !important;
 }
 
+/* ================================================================
+   HOSTEL HUB — APP HEADER & NAVBAR STYLES
+   ================================================================ */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #0F172A;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.brand:hover {
+  transform: translateY(-1px);
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #0F766E, #0D9488);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 900;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #FFFFFF;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.brand-accent {
+  color: #2DD4BF;
+}
+
+.brand-subtitle {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94A3B8;
+  margin-top: 2px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #CBD5E1;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-link:hover {
+  color: #2DD4BF;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-link.active {
+  color: #FFFFFF;
+  background: rgba(15, 118, 110, 0.3);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
+.nav-badge {
+  background: #059669;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.user-pill:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #2DD4BF;
+}
+
+.user-avatar {
+  font-size: 16px;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.header-actions .btn-ghost {
+  color: #CBD5E1;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.header-actions .btn-ghost:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.header-actions .btn-primary {
+  background: linear-gradient(135deg, #0F766E, #0D9488);
+  color: #FFFFFF;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.3);
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.header-actions .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(15, 118, 110, 0.45);
+}
+
+.header-actions .btn-outline {
+  background: transparent;
+  color: #CBD5E1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.header-actions .btn-outline:hover {
+  color: #FFFFFF;
+  border-color: #CBD5E1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 768px) {
+  .header-inner {
+    padding: 0 16px;
+    height: 60px;
+  }
+  .brand-subtitle {
+    display: none;
+  }
+  .nav-link {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .header-actions .btn-ghost,
+  .header-actions .btn-primary {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+}
+
+
 
