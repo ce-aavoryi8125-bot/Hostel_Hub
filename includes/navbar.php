@@ -44,7 +44,12 @@ $activePage = $active_page ?? 'home';
 
     <!-- User Action Controls -->
     <div class="header-actions">
-      <?php if ($student): ?>
+      <?php if (isset($_SESSION['landlord_id'])): ?>
+        <a href="<?= BASE_URL ?>landlord/dashboard.php" class="btn btn-primary btn-sm">
+          <span>🏢 Landlord Dashboard</span>
+        </a>
+        <a href="<?= BASE_URL ?>landlord/logout.php" class="btn btn-outline btn-sm">Sign Out</a>
+      <?php elseif ($student): ?>
         <div class="user-menu">
           <a href="<?= BASE_URL ?>profile.php" class="user-pill" title="View Student Profile">
             <span class="user-avatar">🎓</span>
@@ -53,6 +58,7 @@ $activePage = $active_page ?? 'home';
           <a href="<?= BASE_URL ?>logout.php" class="btn btn-outline btn-sm btn-logout">Sign Out</a>
         </div>
       <?php else: ?>
+        <a href="<?= BASE_URL ?>landlord/login.php" class="btn btn-ghost" style="color: var(--color-primary); font-weight: 600;">Landlords</a>
         <a href="<?= BASE_URL ?>login.php" class="btn btn-ghost">Sign In</a>
         <a href="<?= BASE_URL ?>register.php" class="btn btn-primary">Create Account</a>
       <?php endif; ?>
