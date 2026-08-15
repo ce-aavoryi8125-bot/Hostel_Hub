@@ -107,14 +107,13 @@ $locations = $locationsStmt->fetchAll();
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
         <?php foreach ($hostels as $h): 
           $photos = array_filter(explode(',', $h['photos']));
-          $coverPhoto = !empty($photos) ? trim($photos[0]) : 'assets/images/hostels/hostel-1a.jpg';
-          if (strpos($coverPhoto, 'http') !== 0) { $coverPhoto = BASE_URL . ltrim($coverPhoto, '/'); }
+          $coverPhoto = !empty($photos) ? trim($photos[0]) : 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80';
           $facList = array_filter(array_map('trim', explode(',', $h['facilities'])));
         ?>
           <div class="card hostel-card-item" data-name="<?= sanitize($h['name']) ?>" data-location="<?= sanitize($h['location_name']) ?>" data-price="<?= $h['price_per_year'] ?>" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(15,23,42,0.06);">
             
             <div style="position: relative; height: 200px; background: #CBD5E1; overflow: hidden;">
-              <img src="<?= sanitize($coverPhoto) ?>" alt="<?= sanitize($h['name']) ?>" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=900&q=80';">
+              <img src="<?= sanitize($coverPhoto) ?>" alt="<?= sanitize($h['name']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
               <div style="position: absolute; top: 12px; left: 12px; background: rgba(15,23,42,0.85); color: #2DD4BF; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700;">
                 📍 <?= sanitize($h['distance_km']) ?> km to UMaT
               </div>
