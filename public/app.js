@@ -1964,21 +1964,179 @@ function ManagerApplyForm({ setView }) {
 
 // ── Forgot Password ───────────────────────────────────────
 function ForgotPassword({ setView }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy]   = useState(false);
-  const [sent, setSent]   = useState(false);
-  const [err, setErr]     = useState('');
+  const [email, setEmail]             = useState('');
+  const [otpCode, setOtpCode]         = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [directLink, setDirectLink]   = useState('');
+  const [step, setStep]               = useState(1); // 1: Enter Email | 2: Enter Code & Password | 3: Success
+  const [busy, setBusy]               = useState(false);
+  const [err, setErr]                 = useState('');
 
-  const submit = async e => {
-    e.preventDefault(); setBusy(true); setErr('');
+  const handleRequestCode = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setBusy(true); setErr('');
     try {
-      await apiFetch('/api/forgot-password', { method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase() }) });
-      setSent(true);
-    } catch (e) { setErr(e.message); }
+      const res = await apiFetch('/api/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim().toLowerCase() })
+      });
+      if (res.otpCode) {
+        setGeneratedOtp(res.otpCode);
+        setOtpCode(res.otpCode); // Pre-fill for seamless verification
+      }
+      if (res.actionLink) {
+        setDirectLink(res.actionLink);
+      }
+      setStep(2);
+    } catch (e) {
+      setErr(e.message || 'Failed to request reset. Please try again.');
+    }
     setBusy(false);
   };
 
-  if (sent) return <CheckEmailScreen setView={setView} email={email} />;
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!otpCode) {
+      setErr('Please enter the 6-digit verification code.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setErr('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErr('Passwords do not match.');
+      return;
+    }
+    setBusy(true); setErr('');
+    try {
+      await apiFetch('/api/reset-password-with-otp', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otpCode: otpCode.trim(),
+          newPassword
+        })
+      });
+      setStep(3);
+      setTimeout(() => {
+        setView('login');
+      }, 2500);
+    } catch (e) {
+      setErr(e.message || 'Failed to reset password. Please check the code.');
+    }
+    setBusy(false);
+  };
+
+  if (step === 3) {
+    return (
+      <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', textAlign: 'center', padding: '24px 0' }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: '#ffffff', marginBottom: 12 }}>Password Reset Successful!</h2>
+        <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 28, lineHeight: 1.6 }}>
+          Your password has been updated. You can now sign in with your new credentials.
+        </p>
+        <button className="dark-btn-primary" onClick={() => setView('login')}>
+          Proceed to Sign In →
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'grid', placeItems: 'center', fontSize: 18, color: '#fff' }}>
+              🔑
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>Hostel<span style={{ color: '#818cf8' }}>Hub</span></div>
+          </div>
+          <button type="button" onClick={() => setStep(1)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#cbd5e1', padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer' }}>
+            ← Change Email
+          </button>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0' }}>Enter Reset Code</h1>
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+            Reset code sent to <strong style={{ color: '#e2e8f0' }}>{email}</strong>
+          </p>
+        </div>
+
+        {generatedOtp && (
+          <div style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: 13, color: '#c7d2fe' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Verification Code: <strong style={{ letterSpacing: 2, fontSize: 16, color: '#ffffff' }}>{generatedOtp}</strong></span>
+              <span style={{ fontSize: 11, background: '#4f46e5', color: '#fff', padding: '2px 8px', borderRadius: 12 }}>Active</span>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="dark-form-group" style={{ marginBottom: 0 }}>
+            <label className="dark-form-label">6-Digit Verification Code</label>
+            <div className="dark-input-wrapper">
+              <input
+                className="dark-form-input"
+                type="text"
+                value={otpCode}
+                onChange={e => setOtpCode(e.target.value)}
+                placeholder="e.g. 123456"
+                required
+                maxLength={6}
+                style={{ letterSpacing: 4, fontWeight: 700, textAlign: 'center', fontSize: 18 }}
+              />
+            </div>
+          </div>
+
+          <div className="dark-form-group" style={{ marginBottom: 0 }}>
+            <label className="dark-form-label">New Password (min 8 characters)</label>
+            <div className="dark-input-wrapper">
+              <input
+                className="dark-form-input"
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+              />
+            </div>
+          </div>
+
+          <div className="dark-form-group" style={{ marginBottom: 0 }}>
+            <label className="dark-form-label">Confirm New Password</label>
+            <div className="dark-input-wrapper">
+              <input
+                className="dark-form-input"
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+              />
+            </div>
+          </div>
+
+          {err && (
+            <div className="alert alert-danger" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}>
+              <span className="alert-icon">⚠</span>{err}
+            </div>
+          )}
+
+          <button type="submit" className="dark-btn-primary" disabled={busy}>
+            {busy ? <Spinner /> : 'Save New Password & Sign In'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
@@ -1996,19 +2154,19 @@ function ForgotPassword({ setView }) {
 
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0' }}>Forgot password?</h1>
-        <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Enter your email and we'll send a reset link.</p>
+        <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Enter your account email to receive your instant reset code.</p>
       </div>
 
-      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <form onSubmit={handleRequestCode} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="dark-form-group" style={{ marginBottom: 0 }}>
-          <label className="dark-form-label">Enter email id</label>
+          <label className="dark-form-label">Registered Email Address</label>
           <div className="dark-input-wrapper">
             <input className="dark-form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
           </div>
         </div>
         {err && <div className="alert alert-danger" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}><span className="alert-icon">⚠</span>{err}</div>}
         <button type="submit" className="dark-btn-primary" disabled={busy}>
-          {busy ? <Spinner /> : 'Send Reset Link'}
+          {busy ? <Spinner /> : 'Continue to Reset Password →'}
         </button>
       </form>
     </div>
