@@ -4327,16 +4327,53 @@ function EnlistHostelWizard({ toast, managers, onDone, onCancel }) {
     }));
   };
 
-  const handleFileUpload = (cat, files) => {
-    Array.from(files).forEach(file => {
+  const compressImage = (file, maxDimension = 1400, quality = 0.82) => {
+    return new Promise((resolve) => {
+      if (!file.type || !file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.readAsDataURL(file);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileUpload = (cat, files) => {
+    Array.from(files).forEach(async (file) => {
+      const compressed = await compressImage(file);
+      if (compressed) {
         setGalleries(g => ({
           ...g,
-          [cat]: [...(g[cat] || []), e.target.result]
+          [cat]: [...(g[cat] || []), compressed]
         }));
-      };
-      reader.readAsDataURL(file);
+      }
     });
   };
 
