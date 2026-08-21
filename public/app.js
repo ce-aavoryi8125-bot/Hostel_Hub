@@ -4377,6 +4377,34 @@ function EnlistHostelWizard({ toast, managers, onDone, onCancel }) {
     });
   };
 
+  const compressDataUrl = (dataUrl, maxDimension = 1000, quality = 0.70) => {
+    if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return Promise.resolve(dataUrl);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
   const submitEnlistment = async () => {
     if (!basic.name || !basic.description || !basic.address) {
       toast('Please fill in basic hostel details (Name, Address, Description)', 'warning');
@@ -4390,7 +4418,17 @@ function EnlistHostelWizard({ toast, managers, onDone, onCancel }) {
         if (v.active) activeRooms[k] = { price: v.price, available: v.available, occupancy: v.occupancy, gender: v.gender };
       });
 
-      const coverPhotos = galleries.exterior.length ? galleries.exterior : [galleries['1_in_room']?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80'];
+      // Compress and optimize all gallery images across all categories (1-in-a-room to 4-in-a-room, etc.)
+      const cleanedGalleries = {};
+      for (const [cat, list] of Object.entries(galleries)) {
+        if (Array.isArray(list) && list.length > 0) {
+          cleanedGalleries[cat] = await Promise.all(list.map(img => compressDataUrl(img)));
+        } else {
+          cleanedGalleries[cat] = [];
+        }
+      }
+
+      const coverPhotos = cleanedGalleries.exterior?.length ? cleanedGalleries.exterior : [cleanedGalleries['1_in_room']?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80'];
 
       const payload = {
         name: basic.name,
@@ -4410,7 +4448,7 @@ function EnlistHostelWizard({ toast, managers, onDone, onCancel }) {
         roomTypes: JSON.stringify(activeRooms),
         facilities: facilities.join(','),
         services: services.join(','),
-        gallery: JSON.stringify(galleries),
+        gallery: JSON.stringify(cleanedGalleries),
         photos: JSON.stringify(coverPhotos),
         rules
       };
