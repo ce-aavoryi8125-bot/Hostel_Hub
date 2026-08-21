@@ -4,6 +4,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const { error } = require('../utils/apiResponse');
 const supabase = require('../config/supabase');
 const { supabaseAnon } = require('../config/supabase');
+const { sendPasswordResetEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -355,9 +356,18 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
   passwordResetOTPs.set(cleanEmail, { otp: otpCode, expiresAt, actionLink });
   console.log(`[AUTH] Password Reset OTP for ${cleanEmail}: ${otpCode}`);
 
+  // 4. Send real HTML reset email to user's inbox
+  const resetLink = actionLink || `${redirectTo}&email=${encodeURIComponent(cleanEmail)}&code=${otpCode}`;
+  sendPasswordResetEmail({
+    toEmail: cleanEmail,
+    name: cleanEmail.split('@')[0],
+    resetLink,
+    otpCode
+  }).catch(e => console.warn('Email dispatch note:', e.message));
+
   return res.json({
     ok: true,
-    message: 'A password reset code and recovery link have been generated.',
+    message: 'A password reset code and recovery link have been generated and dispatched to your email.',
     otpCode: otpCode,
     actionLink: actionLink || undefined,
   });
