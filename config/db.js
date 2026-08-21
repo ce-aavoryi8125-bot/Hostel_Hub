@@ -420,8 +420,7 @@ const connectDB = async () => {
     await seedDemoStudent();
     await seedHostels();
   } catch (err) {
-    console.error('❌ Supabase connection error:', err.message);
-    process.exit(1);
+    console.warn('⚠️  Supabase connection note (will retry on demand):', err.message);
   }
 };
 
