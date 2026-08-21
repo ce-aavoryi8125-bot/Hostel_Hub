@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: hostelhub-platform
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: business-development
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SUPABASE_URL
+        value: https://omztddqbphsrgxghfdac.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tenRkZHFicGhzcmd4Z2hmZGFjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDA2NTI1MiwiZXhwIjoyMDk5NjQxMjUyfQ.WnRs_qmBG0OusyjnEG9JggZw-ULfd9vwI7zCUNkoykw
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tenRkZHFicGhzcmd4Z2hmZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNjUyNTIsImV4cCI6MjA5OTY0MTI1Mn0.DaRqLrjvlkKen46VJr45lqHU5CxHhfriVQwesVrbrJg
+      - key: JWT_SECRET
+        value: hostel-hub-secret-key-2024
+      - key: NODE_ENV
+        value: production
