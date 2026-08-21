@@ -474,9 +474,27 @@ function AuthPage({ onLogin }) {
   const { activeTheme, toggleTheme } = useTheme();
   // On admin.html (data-page="admin"), go straight to admin login — skip public landing
   const isAdminPage = document.body.dataset.page === 'admin';
-  const [view, setView] = useState(isAdminPage ? 'admin-login' : 'landing'); // landing | role-select | student-login | student-signup | manager-login | manager-apply | admin-login | forgot | check-email
+  const hasRecoveryHash = window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token');
+  const [view, setView] = useState(hasRecoveryHash ? 'reset-password' : (isAdminPage ? 'admin-login' : 'landing')); // landing | role-select | student-login | student-signup | manager-login | manager-apply | admin-login | forgot | check-email | reset-password
   const [selectedHostel, setSelectedHostel] = useState(null);
   const [demoPreset, setDemoPreset] = useState(null);
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash.includes('type=recovery') || hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.replace(/^#\/?/, ''));
+        const token = params.get('access_token');
+        if (token) {
+          localStorage.setItem('hh_token', token);
+        }
+        setView('reset-password');
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   const handleSelectDemo = (e, p, r) => {
     setDemoPreset({ email: e, password: p, role: r });
@@ -526,6 +544,7 @@ function AuthPage({ onLogin }) {
           {(view === 'manager-apply') && <ManagerApplyForm setView={setView} />}
           {view === 'forgot' && <ForgotPassword setView={setView} />}
           {view === 'check-email' && <CheckEmailScreen setView={setView} />}
+          {view === 'reset-password' && <ResetPasswordForm setView={setView} onLogin={onLogin} />}
         </div>
       </div>
     </div>
@@ -2007,6 +2026,106 @@ function CheckEmailScreen({ setView, email }) {
       <button className="dark-btn-primary" style={{ background: '#333748', boxShadow: 'none' }} onClick={() => setView('login')}>
         ← Back to sign in
       </button>
+    </div>
+  );
+}
+
+function ResetPasswordForm({ setView, onLogin }) {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (password.length < 8) {
+      setErr('Password must be at least 8 characters long.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErr('Passwords do not match.');
+      return;
+    }
+    setBusy(true);
+    setErr('');
+    try {
+      await apiFetch('/api/update-password', {
+        method: 'POST',
+        body: JSON.stringify({ newPassword: password })
+      });
+      setSuccess(true);
+      setTimeout(() => {
+        window.location.hash = '';
+        setView('login');
+      }, 2000);
+    } catch (e) {
+      setErr(e.message || 'Failed to update password. Link may have expired.');
+    }
+    setBusy(false);
+  };
+
+  if (success) {
+    return (
+      <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', textAlign: 'center', padding: '24px 0' }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: '#ffffff', marginBottom: 12 }}>Password Reset Complete!</h2>
+        <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 28 }}>
+          Your password has been updated successfully. Redirecting to login...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0' }}>Set New Password</h1>
+        <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Enter your new password below to secure your account.</p>
+      </div>
+
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="dark-form-group" style={{ marginBottom: 0 }}>
+          <label className="dark-form-label">New Password (min 8 chars)</label>
+          <div className="dark-input-wrapper">
+            <input
+              className="dark-form-input"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={8}
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="dark-form-group" style={{ marginBottom: 0 }}>
+          <label className="dark-form-label">Confirm New Password</label>
+          <div className="dark-input-wrapper">
+            <input
+              className="dark-form-input"
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={8}
+            />
+          </div>
+        </div>
+
+        {err && (
+          <div className="alert alert-danger" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}>
+            <span className="alert-icon">⚠</span>{err}
+          </div>
+        )}
+
+        <button type="submit" className="dark-btn-primary" disabled={busy}>
+          {busy ? <Spinner /> : 'Update Password'}
+        </button>
+      </form>
     </div>
   );
 }

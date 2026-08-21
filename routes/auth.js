@@ -311,16 +311,56 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) return error(res, 'Email is required', 400);
 
-  // We use generateLink to create a reset link
-  const { error: linkErr } = await supabase.auth.admin.generateLink({
-    type: 'recovery',
-    email: String(email).trim().toLowerCase(),
+  const cleanEmail = String(email).trim().toLowerCase();
+  const host = req.get('host') || 'localhost:3001';
+  const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+  const origin = req.get('origin') || `${protocol}://${host}`;
+  const redirectTo = `${origin}/#type=recovery`;
+
+  // 1. Trigger Supabase's email sender to deliver the password reset link to user's inbox
+  const { error: resetErr } = await supabaseAnon.auth.resetPasswordForEmail(cleanEmail, {
+    redirectTo
   });
 
-  // Always return success (don't reveal if email exists)
-  if (linkErr) console.warn('Password reset link warn:', linkErr.message);
+  if (resetErr) {
+    console.warn('Password reset email dispatch warn:', resetErr.message);
+  }
 
-  return res.json({ message: 'If an account exists with that email, a reset link has been sent.' });
+  // 2. Also generate link fallback for logs / debugging
+  try {
+    const { data: linkData } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email: cleanEmail,
+      options: { redirectTo }
+    });
+    if (linkData?.properties?.action_link) {
+      console.log(`[AUTH] Password recovery link for ${cleanEmail}: ${linkData.properties.action_link}`);
+    }
+  } catch (err) {
+    // Non-fatal logging
+  }
+
+  return res.json({ message: 'If an account exists with that email, a password reset link has been sent to your email.' });
+}));
+
+// ─────────────────────────────────────────────
+// UPDATE PASSWORD (After reset link or authenticated)
+// ─────────────────────────────────────────────
+router.post('/update-password', authenticateToken, asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    return error(res, 'New password must be at least 8 characters long', 400);
+  }
+
+  const userId = req.user.id || req.user.sub;
+  const { error: updateErr } = await supabase.auth.admin.updateUserById(userId, {
+    password: newPassword,
+    app_metadata: { force_password_reset: false }
+  });
+
+  if (updateErr) throw updateErr;
+
+  return res.json({ message: 'Password updated successfully' });
 }));
 
 // ─────────────────────────────────────────────
