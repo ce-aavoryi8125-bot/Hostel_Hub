@@ -26,14 +26,14 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024, files: 12 }
+  limits: { fileSize: 25 * 1024 * 1024, fieldSize: 25 * 1024 * 1024, files: 30 }
 });
 
 // Extended upload for hostel wizard — accepts any named fields, up to 80 files total
 const uploadHostel = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 8 * 1024 * 1024, files: 80 }
+  limits: { fileSize: 50 * 1024 * 1024, fieldSize: 50 * 1024 * 1024, files: 100 }
 });
 
 module.exports = { upload, uploadHostel, UPLOADS_DIR };

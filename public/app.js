@@ -4327,9 +4327,9 @@ function EnlistHostelWizard({ toast, managers, onDone, onCancel }) {
     }));
   };
 
-  const compressImage = (file, maxDimension = 1400, quality = 0.82) => {
+  const compressImage = (file, maxDimension = 900, quality = 0.70) => {
     return new Promise((resolve) => {
-      if (!file.type || !file.type.startsWith('image/')) {
+      if (!file || !file.type || !file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = e => resolve(e.target.result);
         reader.readAsDataURL(file);
@@ -4365,16 +4365,18 @@ function EnlistHostelWizard({ toast, managers, onDone, onCancel }) {
     });
   };
 
-  const handleFileUpload = (cat, files) => {
-    Array.from(files).forEach(async (file) => {
-      const compressed = await compressImage(file);
-      if (compressed) {
-        setGalleries(g => ({
-          ...g,
-          [cat]: [...(g[cat] || []), compressed]
-        }));
-      }
-    });
+  const handleFileUpload = async (cat, files) => {
+    if (!files || !files.length) return;
+    const fileArr = Array.from(files);
+    const newImgs = [];
+    for (const f of fileArr) {
+      const c = await compressImage(f, 900, 0.70);
+      if (c) newImgs.push(c);
+    }
+    setGalleries(g => ({
+      ...g,
+      [cat]: [...(g[cat] || []), ...newImgs]
+    }));
   };
 
   const compressDataUrl = (dataUrl, maxDimension = 1000, quality = 0.70) => {
