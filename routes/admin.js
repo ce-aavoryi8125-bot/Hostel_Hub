@@ -1,7 +1,32 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { upload, uploadHostel } = require('../middleware/upload');
+const { upload, uploadHostel, UPLOADS_DIR } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errorHandler');
+
+// Helper: convert any base64 data URL to an actual file on disk in /uploads/
+function saveBase64Image(dataUrl, prefix = 'hostel') {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+    return dataUrl;
+  }
+  try {
+    const headerEnd = dataUrl.indexOf(';base64,');
+    if (headerEnd === -1) return dataUrl;
+    const mime = dataUrl.substring(5, headerEnd);
+    let ext = mime.split('/')[1] || 'jpg';
+    if (ext === 'jpeg') ext = 'jpg';
+    const base64Data = dataUrl.substring(headerEnd + 8);
+    const buffer = Buffer.from(base64Data, 'base64');
+    const filename = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const filePath = path.join(UPLOADS_DIR, filename);
+    fs.writeFileSync(filePath, buffer);
+    return `/uploads/${filename}`;
+  } catch (err) {
+    console.warn('Failed to save base64 image:', err.message);
+    return dataUrl;
+  }
+}
 const { error } = require('../utils/apiResponse');
 const supabase = require('../config/supabase');
 const { supabaseAnon } = require('../config/supabase');
@@ -367,9 +392,20 @@ router.post('/hostels', authenticateToken, requireAdmin, uploadHostel.any(), asy
     }
   }
 
+  // Convert any base64 images in photos and gallery to real disk files in /uploads/
+  photos = photos.map((p, idx) => saveBase64Image(p, `hostel-cover-${idx}`));
+
+  if (gallery && typeof gallery === 'object') {
+    Object.keys(gallery).forEach(cat => {
+      if (Array.isArray(gallery[cat])) {
+        gallery[cat] = gallery[cat].map((img, idx) => saveBase64Image(img, `gallery-${cat}-${idx}`));
+      }
+    });
+  }
+
   const kitchenPhotos = collect('kitchen_photos');
 
-  const baseHostelData = {
+  const hostelPayload = {
     name: String(req.body.name || '').trim(),
     location: String(req.body.location || '').trim(),
     address: String(req.body.address || '').trim(),
@@ -377,35 +413,30 @@ router.post('/hostels', authenticateToken, requireAdmin, uploadHostel.any(), asy
     rating: Number(req.body.rating || 4.5),
     maps_url: String(req.body.mapsUrl || '').trim(),
     facilities,
+    services,
     description: String(req.body.description || '').trim(),
+    rules: String(req.body.rules || '').trim(),
     photos: photos.length ? photos : ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80'],
     kitchen_photos: kitchenPhotos.length ? kitchenPhotos : [],
     room_types: roomTypes,
-  };
-  const extendedHostelData = {
-    ...baseHostelData,
     gallery,
-    services,
-    rules: String(req.body.rules || '').trim(),
-    owner_name: String(req.body.ownerName || '').trim(),
+    agent_name: String(req.body.ownerName || req.body.managerName || '').trim(),
+    agent_phone: String(req.body.contactNumbers || req.body.managerPhone || '').trim(),
+    agent_email: String(req.body.email || req.body.managerEmail || '').trim(),
     manager_id: req.body.managerId || null,
     manager_name: String(req.body.managerName || '').trim(),
     manager_phone: String(req.body.contactNumbers || req.body.managerPhone || '').trim(),
     manager_email: String(req.body.email || req.body.managerEmail || '').trim(),
-    gps_address: String(req.body.gpsAddress || '').trim(),
-    nearest_landmark: String(req.body.nearestLandmark || '').trim(),
-    distance_km: Number(req.body.distanceKm || 1.2),
-    verification_status: 'pending',
-    is_published: false,
+    verification_status: 'verified',
+    is_published: true,
   };
 
-  let hostelResult = await supabase.from('hostels').insert(extendedHostelData).select().single();
-  if (hostelResult.error && (hostelResult.error.message?.includes('column') || hostelResult.error.message?.includes('does not exist'))) {
-    hostelResult = await supabase.from('hostels').insert(baseHostelData).select().single();
-  }
-  const { data: hostel, error: dbErr } = hostelResult;
+  const { data: hostel, error: dbErr } = await supabase.from('hostels').insert(hostelPayload).select().single();
 
-  if (dbErr) throw dbErr;
+  if (dbErr) {
+    console.error('Hostel insert error:', dbErr);
+    throw dbErr;
+  }
   await logAudit(req.user.sub, req.user.name, 'hostel_onboarded', 'hostel', hostel.id, hostel.name);
   return res.status(201).json({ message: 'Hostel onboarded successfully', hostel });
 }));
@@ -432,6 +463,17 @@ router.put('/hostels/:id', authenticateToken, requireAdmin, asyncHandler(async (
       }
     }
   });
+
+  if (updates.photos && Array.isArray(updates.photos)) {
+    updates.photos = updates.photos.map((p, idx) => saveBase64Image(p, `hostel-update-cover-${idx}`));
+  }
+  if (updates.gallery && typeof updates.gallery === 'object') {
+    Object.keys(updates.gallery).forEach(cat => {
+      if (Array.isArray(updates.gallery[cat])) {
+        updates.gallery[cat] = updates.gallery[cat].map((img, idx) => saveBase64Image(img, `gallery-update-${cat}-${idx}`));
+      }
+    });
+  }
 
   const { data: hostel, error: dbErr } = await supabase.from('hostels').update(updates).eq('id', req.params.id).select().single();
   if (dbErr) throw dbErr;
